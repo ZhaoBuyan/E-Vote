@@ -1,0 +1,72 @@
+/* ============ 全局 ============ */
+body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background-color: #f5f7fa;
+}
+
+.bg-gradient {
+    background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%);
+    min-height: 100vh;
+}
+
+.hover-shadow {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.hover-shadow:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+/* ============ 卡片 ============ */
+.card {
+    border: none;
+    border-radius: 12px;
+}
+.card-body {
+    padding: 1.5rem;
+}
+
+/* ============ 进度条 ============ */
+.progress {
+    height: 20px;
+    border-radius: 10px;
+    background-color: #e9ecef;
+}
+.progress-bar {
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 20px;
+}
+
+/* ============ 表单 ============ */
+.form-control:focus,
+.form-select:focus {
+    border-color: #1976d2;
+    box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25);
+}
+
+/* ============ 按钮 ============ */
+.btn-primary {
+    background-color: #0d47a1;
+    border-color: #0d47a1;
+}
+.btn-primary:hover {
+    background-color: #1565c0;
+    border-color: #1565c0;
+}
+
+/* ============ 导航 ============ */
+.navbar {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* ============ 响应式 ============ */
+@media (max-width: 768px) {
+    .card-body {
+        padding: 1rem;
+    }
+    .chart-container {
+        height: 300px;
+    }
+}

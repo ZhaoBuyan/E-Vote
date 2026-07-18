@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>投票列表 - E-Vote</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">E-Vote</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/">投票列表</a>
+                    </li>
+                    <li class="nav-item" id="myPollsNav" style="display:none;">
+                        <a class="nav-link" href="my-polls.html">我的投票</a>
+                    </li>
+                    <li class="nav-item" id="createNav" style="display:none;">
+                        <a class="nav-link" href="create-poll.html">创建投票</a>
+                    </li>
+                    <li class="nav-item" id="userInfo" style="display:none;">
+                        <span class="nav-link text-light" id="userName"></span>
+                    </li>
+                    <li class="nav-item" id="loginNav">
+                        <a class="nav-link" href="login.html">登录</a>
+                    </li>
+                    <li class="nav-item" id="logoutNav" style="display:none;">
+                        <a class="nav-link" href="#" id="logoutBtn">退出</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4>📋 进行中的投票</h4>
+            <div>
+                <button class="btn btn-outline-primary btn-sm me-2" id="refreshBtn">刷新</button>
+                <a href="my-polls.html" class="btn btn-outline-secondary btn-sm" id="myPollsBtn" style="display:none;">我的投票</a>
+            </div>
+        </div>
+
+        <div class="row" id="pollList">
+            <div class="col-12 text-center text-muted py-5">加载中...</div>
+        </div>
+
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center" id="pagination"></ul>
+        </nav>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/index.js"></script>
+</body>
+</html>
