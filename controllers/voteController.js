@@ -29,7 +29,10 @@ async function submitVote(req, res) {
     const { id: pollId } = req.params;
     const { optionIds } = req.body;
     const userId = req.user.id;
-    const ip = req.ip || req.connection.remoteAddress;
+    const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() 
+        || req.headers['x-real-ip'] 
+        || req.ip 
+        || req.connection.remoteAddress;
 
     if (!optionIds || !Array.isArray(optionIds) || optionIds.length === 0) {
         return res.status(400).json({

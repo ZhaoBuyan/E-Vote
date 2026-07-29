@@ -20,6 +20,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // 静态文件
 app.use(express.static(path.join(__dirname, 'public')));
+app.set('trust proxy', true);
 
 // API路由
 app.use('/api', routes);
