@@ -1,5 +1,5 @@
-const mysql = require('mysql2/promise');
-require('dotenv').config();
+const mysql = require('mysql2/promise')
+require('dotenv').config()
 
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
@@ -11,16 +11,16 @@ const pool = mysql.createPool({
     connectionLimit: 10,
     queueLimit: 0,
     charset: 'utf8mb4'
-});
+})
 
 // 测试连接
 pool.getConnection()
-    .then(conn => {
-        console.log('✅ 数据库连接成功');
-        conn.release();
+    .then((conn) => {
+        console.log('✅ 数据库连接成功')
+        conn.release()
     })
-    .catch(err => {
-        console.error('❌ 数据库连接失败:', err.message);
-    });
+    .catch((err) => {
+        console.error('❌ 数据库连接失败:', err.message)
+    })
 
-module.exports = pool;
+module.exports = pool

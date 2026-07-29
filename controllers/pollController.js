@@ -1,48 +1,48 @@
-const pool = require('../config/db');
-const schedule = require('node-schedule');
+const pool = require('../config/db')
+const schedule = require('node-schedule')
 
 // 定时任务：每天凌晨2点检查并关闭过期投票
-schedule.scheduleJob('0 2 * * *', async function() {
+schedule.scheduleJob('0 2 * * *', async function () {
     try {
         const [result] = await pool.query(
             "UPDATE polls SET status = 'closed' WHERE status = 'active' AND end_time < NOW()"
-        );
+        )
         if (result.affectedRows > 0) {
-            console.log(`⏰ 自动关闭了 ${result.affectedRows} 个过期投票`);
+            console.log(`⏰ 自动关闭了 ${result.affectedRows} 个过期投票`)
         }
     } catch (err) {
-        console.error('定时任务执行失败:', err);
+        console.error('定时任务执行失败:', err)
     }
-});
+})
 
 async function getPolls(req, res) {
-    const { status, page = 1, pageSize = 10 } = req.query;
-    const pageNum = parseInt(page) || 1;
-    const limit = parseInt(pageSize) || 10;
-    const offset = (pageNum - 1) * limit;
+    const { status, page = 1, pageSize = 10 } = req.query
+    const pageNum = parseInt(page) || 1
+    const limit = parseInt(pageSize) || 10
+    const offset = (pageNum - 1) * limit
 
-    let whereClause = 'WHERE 1=1';
-    const params = [];
+    let whereClause = 'WHERE 1=1'
+    const params = []
 
     if (status) {
-        whereClause += ' AND p.status = ?';
-        params.push(status);
+        whereClause += ' AND p.status = ?'
+        params.push(status)
     }
 
-    console.log('🔍 whereClause:', whereClause);
-    console.log('🔍 params (before count):', params);
+    console.log('🔍 whereClause:', whereClause)
+    console.log('🔍 params (before count):', params)
 
     try {
         // 查询总数
         const [countResult] = await pool.query(
             `SELECT COUNT(*) as total FROM polls p ${whereClause}`,
             params
-        );
-        const total = countResult[0].total;
+        )
+        const total = countResult[0].total
 
         // 查询列表
-        const listParams = [...params, limit, offset];
-        console.log('🔍 listParams:', listParams);
+        const listParams = [...params, limit, offset]
+        console.log('🔍 listParams:', listParams)
 
         const [rows] = await pool.query(
             `SELECT p.id, p.title, p.description, p.type, p.status, p.end_time, p.created_at,
@@ -55,7 +55,7 @@ async function getPolls(req, res) {
              ORDER BY p.created_at DESC
              LIMIT ? OFFSET ?`,
             listParams
-        );
+        )
 
         res.json({
             code: 200,
@@ -66,18 +66,18 @@ async function getPolls(req, res) {
                 pageSize: limit,
                 totalPages: Math.ceil(total / limit)
             }
-        });
+        })
     } catch (err) {
-        console.error('❌ 获取投票列表错误:', err);
+        console.error('❌ 获取投票列表错误:', err)
         res.status(500).json({
             code: 500,
             msg: '服务器错误'
-        });
+        })
     }
 }
 
 async function getPollById(req, res) {
-    const { id } = req.params;
+    const { id } = req.params
 
     try {
         const [polls] = await pool.query(
@@ -86,13 +86,13 @@ async function getPollById(req, res) {
              LEFT JOIN users u ON p.created_by = u.id
              WHERE p.id = ?`,
             [id]
-        );
+        )
 
         if (polls.length === 0) {
             return res.status(404).json({
                 code: 404,
                 msg: '投票不存在'
-            });
+            })
         }
 
         const [options] = await pool.query(
@@ -101,87 +101,106 @@ async function getPollById(req, res) {
              WHERE poll_id = ?
              ORDER BY sort_order ASC`,
             [id]
-        );
+        )
 
-        const poll = polls[0];
-        poll.options = options;
+        const poll = polls[0]
+        poll.options = options
 
         res.json({
             code: 200,
             data: poll
-        });
+        })
     } catch (err) {
-        console.error('获取投票详情错误:', err);
+        console.error('获取投票详情错误:', err)
         res.status(500).json({
             code: 500,
             msg: '服务器错误'
-        });
+        })
     }
 }
 
 async function createPoll(req, res) {
-    const { title, description, type, options, endTime, isAnonymous } = req.body;
+    const { title, description, type, options, endTime, isAnonymous } = req.body
 
     if (!title || !options || options.length < 2) {
         return res.status(400).json({
             code: 400,
             msg: '请填写标题并至少添加2个选项'
-        });
+        })
     }
 
-    const conn = await pool.getConnection();
+    const conn = await pool.getConnection()
     try {
-        await conn.beginTransaction();
+        await conn.beginTransaction()
 
         const [result] = await conn.query(
-            `INSERT INTO polls (title, description, type, status, end_time, is_anonymous, created_by)
-             VALUES (?, ?, ?, 'active', ?, ?, ?)`,
+            `INSERT INTO polls (title, description, type, status, end_time, is_anonymous, created_by, max_choices)
+            VALUES (?, ?, ?, 'active', ?, ?, ?, ?)`,
             [
                 title,
                 description || null,
                 type || 'single',
                 endTime || null,
                 isAnonymous || false,
-                req.user.id
+                req.user.id,
+                req.body.maxChoices || 0
             ]
-        );
+        )
 
-        const pollId = result.insertId;
+        const pollId = result.insertId
 
         for (let i = 0; i < options.length; i++) {
             await conn.query(
                 'INSERT INTO options (poll_id, option_text, sort_order) VALUES (?, ?, ?)',
                 [pollId, options[i], i + 1]
-            );
+            )
         }
 
-        await conn.commit();
+        await conn.commit()
 
         res.status(201).json({
             code: 201,
             msg: '投票创建成功',
             data: { id: pollId }
-        });
+        })
     } catch (err) {
-        await conn.rollback();
-        console.error('创建投票错误:', err);
+        await conn.rollback()
+        console.error('创建投票错误:', err)
         res.status(500).json({
             code: 500,
             msg: '服务器错误'
-        });
+        })
     } finally {
-        conn.release();
+        conn.release()
     }
 }
 
 async function updatePoll(req, res) {
-    const { id } = req.params;
-    const { title, description, type, status, endTime, isAnonymous } = req.body;
+    const { id } = req.params
+    const { title, description, type, status, endTime, isAnonymous, maxChoices } = req.body
+
+    // 校验 status 合法性
+    const validStatuses = ['draft', 'active', 'closed']
+    if (status && !validStatuses.includes(status)) {
+        return res.status(400).json({
+            code: 400,
+            msg: '状态值无效，必须是 draft/active/closed'
+        })
+    }
+
+    // 校验 maxChoices
+    const maxChoicesNum = parseInt(maxChoices) || 0
+    if (maxChoicesNum < 0) {
+        return res.status(400).json({
+            code: 400,
+            msg: 'maxChoices 不能为负数'
+        })
+    }
 
     try {
         const [result] = await pool.query(
             `UPDATE polls
-             SET title = ?, description = ?, type = ?, status = ?, end_time = ?, is_anonymous = ?
+             SET title = ?, description = ?, type = ?, status = ?, end_time = ?, is_anonymous = ?, max_choices = ?
              WHERE id = ? AND created_by = ?`,
             [
                 title,
@@ -190,81 +209,82 @@ async function updatePoll(req, res) {
                 status || 'active',
                 endTime || null,
                 isAnonymous || false,
+                maxChoicesNum,
                 id,
                 req.user.id
             ]
-        );
+        )
 
         if (result.affectedRows === 0) {
             return res.status(404).json({
                 code: 404,
                 msg: '投票不存在或无权限修改'
-            });
+            })
         }
 
         res.json({
             code: 200,
             msg: '投票更新成功'
-        });
+        })
     } catch (err) {
-        console.error('更新投票错误:', err);
+        console.error('更新投票错误:', err)
         res.status(500).json({
             code: 500,
             msg: '服务器错误'
-        });
+        })
     }
 }
 
 async function deletePoll(req, res) {
-    const { id } = req.params;
-    const isAdmin = req.user.role === 'admin';
+    const { id } = req.params
+    const isAdmin = req.user.role === 'admin'
 
     try {
-        let query, params;
+        let query, params
         if (isAdmin) {
             // 管理员：可以删除任何人的投票
-            query = 'DELETE FROM polls WHERE id = ?';
-            params = [id];
+            query = 'DELETE FROM polls WHERE id = ?'
+            params = [id]
         } else {
             // 普通用户：只能删除自己创建的投票
-            query = 'DELETE FROM polls WHERE id = ? AND created_by = ?';
-            params = [id, req.user.id];
+            query = 'DELETE FROM polls WHERE id = ? AND created_by = ?'
+            params = [id, req.user.id]
         }
 
-        const [result] = await pool.query(query, params);
+        const [result] = await pool.query(query, params)
 
         if (result.affectedRows === 0) {
             return res.status(404).json({
                 code: 404,
                 msg: '投票不存在或无权限删除'
-            });
+            })
         }
 
         res.json({
             code: 200,
             msg: '投票删除成功'
-        });
+        })
     } catch (err) {
-        console.error('删除投票错误:', err);
+        console.error('删除投票错误:', err)
         res.status(500).json({
             code: 500,
             msg: '服务器错误'
-        });
+        })
     }
 }
 
 async function getMyPolls(req, res) {
-    const { page = 1, pageSize = 10 } = req.query;
-    const pageNum = parseInt(page) || 1;
-    const limit = parseInt(pageSize) || 10;
-    const offset = (pageNum - 1) * limit;
+    const { page = 1, pageSize = 10 } = req.query
+    const pageNum = parseInt(page) || 1
+    const limit = parseInt(pageSize) || 10
+    const offset = (pageNum - 1) * limit
 
     try {
         const [countResult] = await pool.query(
             'SELECT COUNT(*) as total FROM polls WHERE created_by = ?',
             [req.user.id]
-        );
-        const total = countResult[0].total;
+        )
+        const total = countResult[0].total
 
         const [rows] = await pool.query(
             `SELECT p.id, p.title, p.type, p.status, p.end_time, p.created_at,
@@ -274,7 +294,7 @@ async function getMyPolls(req, res) {
              ORDER BY p.created_at DESC
              LIMIT ? OFFSET ?`,
             [req.user.id, limit, offset]
-        );
+        )
 
         res.json({
             code: 200,
@@ -285,13 +305,13 @@ async function getMyPolls(req, res) {
                 pageSize: limit,
                 totalPages: Math.ceil(total / limit)
             }
-        });
+        })
     } catch (err) {
-        console.error('获取我的投票列表错误:', err);
+        console.error('获取我的投票列表错误:', err)
         res.status(500).json({
             code: 500,
             msg: '服务器错误'
-        });
+        })
     }
 }
 
@@ -302,4 +322,4 @@ module.exports = {
     updatePoll,
     deletePoll,
     getMyPolls
-};
+}

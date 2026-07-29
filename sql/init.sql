@@ -22,6 +22,7 @@ CREATE TABLE polls (
     title VARCHAR(200) NOT NULL COMMENT '投票标题',
     description TEXT COMMENT '投票说明',
     type ENUM('single', 'multi') DEFAULT 'single' COMMENT '单选/多选',
+    max_choices INT DEFAULT 0 COMMENT '多选最大可选数，0表示不限制',
     is_anonymous BOOLEAN DEFAULT FALSE COMMENT '是否匿名投票',
     status ENUM('draft', 'active', 'closed') DEFAULT 'draft' COMMENT '状态',
     end_time DATETIME COMMENT '截止时间',

@@ -1,6 +1,6 @@
 /* ============ 全局 ============ */
 body {
-    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
     background-color: #f5f7fa;
 }
 
@@ -10,7 +10,9 @@ body {
 }
 
 .hover-shadow {
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition:
+        transform 0.2s,
+        box-shadow 0.2s;
 }
 .hover-shadow:hover {
     transform: translateY(-4px);

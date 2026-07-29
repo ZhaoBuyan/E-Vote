@@ -21,15 +21,15 @@ A full-stack online voting system built with Node.js, Express, MySQL, Bootstrap,
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | HTML5, CSS3, Bootstrap 5, jQuery 3.x |
-| Charts | ECharts 5.x |
-| Backend | Node.js, Express 4.x |
-| Database | MySQL 8.x |
-| Authentication | JWT, bcryptjs |
-| AI Integration | DeepSeek API (OpenAI SDK) |
-| Others | node-schedule (auto-close expired polls) |
+| Layer          | Technology                               |
+| -------------- | ---------------------------------------- |
+| Frontend       | HTML5, CSS3, Bootstrap 5, jQuery 3.x     |
+| Charts         | ECharts 5.x                              |
+| Backend        | Node.js, Express 4.x                     |
+| Database       | MySQL 8.x                                |
+| Authentication | JWT, bcryptjs                            |
+| AI Integration | DeepSeek API (OpenAI SDK)                |
+| Others         | node-schedule (auto-close expired polls) |
 
 ---
 
@@ -117,6 +117,7 @@ mysql -u root -p
 ```
 
 Then execute:
+
 ```sql
 SET NAMES utf8mb4;
 DROP DATABASE IF EXISTS e_vote;
@@ -145,9 +146,9 @@ Visit `http://localhost:3000`
 
 ## 🔑 Default Admin Account
 
-| Field | Value |
-|-------|-------|
-| Username | `admin` |
+| Field    | Value                                          |
+| -------- | ---------------------------------------------- |
+| Username | `admin`                                        |
 | Password | The password you used when generating the hash |
 
 ---
@@ -155,13 +156,17 @@ Visit `http://localhost:3000`
 ## 🤖 AI-Powered Features
 
 ### 1. AI Smart Generation
+
 Enter a topic in the title field and click "✨ AI 生成" — the system will automatically generate:
+
 - A well-crafted poll title
 - A detailed poll description
 - 4-6 relevant options
 
 ### 2. Quick Templates
+
 One-click templates for common scenarios:
+
 - 🎭 年会 (Annual party)
 - 🏆 评选 (Selection/Awards)
 - 📊 能力评价 (Capability evaluation)
@@ -169,7 +174,9 @@ One-click templates for common scenarios:
 - 💡 创意 (Creative ideas)
 
 ### 3. Batch Fill (Import)
+
 Paste content in plain text format with intelligent parsing:
+
 ```
 First line: Poll title
 Second line: Poll description (optional)
@@ -177,6 +184,7 @@ Following lines: Each option per line
 ```
 
 **Smart Features:**
+
 - Automatically detects if the second line is a description or an option
 - Works with or without descriptions
 - Preserves user-provided options (AI only optimizes title/description)
@@ -184,27 +192,28 @@ Following lines: Each option per line
 - Content incomplete → Auto AI optimization
 
 ### 4. AI Mock Mode
+
 If the DeepSeek API is unavailable or network is down, the system automatically falls back to **Mock mode** with preset templates — ensuring the demo never fails.
 
 ---
 
 ## 📡 API Endpoints
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST | `/api/auth/register` | User registration | No |
-| POST | `/api/auth/login` | User login | No |
-| GET | `/api/auth/me` | Get current user info | Yes |
-| GET | `/api/polls` | Get poll list | No |
-| GET | `/api/polls/:id` | Get poll details | No |
-| POST | `/api/polls` | Create a poll | Yes |
-| PUT | `/api/polls/:id` | Update a poll | Yes |
-| DELETE | `/api/polls/:id` | Delete a poll | Yes |
-| GET | `/api/polls/my/list` | Get my polls | Yes |
-| POST | `/api/votes/:id` | Submit a vote | Yes |
-| GET | `/api/votes/:id/check` | Check if user voted | Yes |
-| GET | `/api/votes/:id/results` | Get poll results | No |
-| POST | `/api/ai/generate-poll` | AI generate poll content | Yes |
+| Method | Endpoint                 | Description              | Auth |
+| ------ | ------------------------ | ------------------------ | ---- |
+| POST   | `/api/auth/register`     | User registration        | No   |
+| POST   | `/api/auth/login`        | User login               | No   |
+| GET    | `/api/auth/me`           | Get current user info    | Yes  |
+| GET    | `/api/polls`             | Get poll list            | No   |
+| GET    | `/api/polls/:id`         | Get poll details         | No   |
+| POST   | `/api/polls`             | Create a poll            | Yes  |
+| PUT    | `/api/polls/:id`         | Update a poll            | Yes  |
+| DELETE | `/api/polls/:id`         | Delete a poll            | Yes  |
+| GET    | `/api/polls/my/list`     | Get my polls             | Yes  |
+| POST   | `/api/votes/:id`         | Submit a vote            | Yes  |
+| GET    | `/api/votes/:id/check`   | Check if user voted      | Yes  |
+| GET    | `/api/votes/:id/results` | Get poll results         | No   |
+| POST   | `/api/ai/generate-poll`  | AI generate poll content | Yes  |
 
 ---
 
@@ -224,7 +233,6 @@ If the DeepSeek API is unavailable or network is down, the system automatically 
 ## 📝 License
 
 MIT License
-
 
 ---
 
@@ -251,15 +259,15 @@ MIT License
 
 ## 🛠️ 技术栈
 
-| 层级 | 技术 |
-|------|------|
-| 前端 | HTML5, CSS3, Bootstrap 5, jQuery 3.x |
-| 图表 | ECharts 5.x |
-| 后端 | Node.js, Express 4.x |
-| 数据库 | MySQL 8.x |
-| 认证 | JWT, bcryptjs |
-| AI 集成 | DeepSeek API（OpenAI SDK） |
-| 定时任务 | node-schedule（自动关闭过期投票） |
+| 层级     | 技术                                 |
+| -------- | ------------------------------------ |
+| 前端     | HTML5, CSS3, Bootstrap 5, jQuery 3.x |
+| 图表     | ECharts 5.x                          |
+| 后端     | Node.js, Express 4.x                 |
+| 数据库   | MySQL 8.x                            |
+| 认证     | JWT, bcryptjs                        |
+| AI 集成  | DeepSeek API（OpenAI SDK）           |
+| 定时任务 | node-schedule（自动关闭过期投票）    |
 
 ---
 
@@ -347,6 +355,7 @@ mysql -u root -p
 ```
 
 然后执行：
+
 ```sql
 SET NAMES utf8mb4;
 DROP DATABASE IF EXISTS e_vote;
@@ -375,23 +384,27 @@ npm run dev
 
 ## 🔑 默认管理员账号
 
-| 字段 | 值 |
-|------|-----|
-| 用户名 | `admin` |
-| 密码 | 你生成哈希时使用的明文密码 |
+| 字段   | 值                         |
+| ------ | -------------------------- |
+| 用户名 | `admin`                    |
+| 密码   | 你生成哈希时使用的明文密码 |
 
 ---
 
 ## 🤖 AI 智能功能
 
 ### 1. AI 智能生成
+
 在标题框输入主题，点击「✨ AI 生成」，系统自动生成：
+
 - 精炼的投票标题
 - 详细的投票说明
 - 4-6 个相关选项
 
 ### 2. 快速模板
+
 一键使用常用场景模板：
+
 - 🎭 年会
 - 🏆 评选
 - 📊 能力评价
@@ -399,7 +412,9 @@ npm run dev
 - 💡 创意
 
 ### 3. 批量填充（快速导入）
+
 粘贴纯文本内容，智能解析：
+
 ```
 第一行：投票标题
 第二行：投票说明（可选）
@@ -407,6 +422,7 @@ npm run dev
 ```
 
 **智能特性：**
+
 - 自动判断第二行是说明还是选项
 - 支持有无说明两种格式
 - 完全保留用户提供的选项（AI 只优化标题/说明）
@@ -414,27 +430,28 @@ npm run dev
 - 内容不完整 → 自动 AI 优化
 
 ### 4. AI Mock 模式
+
 如果 DeepSeek API 不可用或网络不通，系统自动切换到 **Mock 模式**，使用预设模板填充，保证演示永不出错。
 
 ---
 
 ## 📡 API 接口列表
 
-| 方法 | 地址 | 说明 | 需认证 |
-|------|------|------|:---:|
-| POST | `/api/auth/register` | 用户注册 | ✗ |
-| POST | `/api/auth/login` | 用户登录 | ✗ |
-| GET | `/api/auth/me` | 获取当前用户信息 | ✓ |
-| GET | `/api/polls` | 获取投票列表 | ✗ |
-| GET | `/api/polls/:id` | 获取投票详情 | ✗ |
-| POST | `/api/polls` | 创建投票 | ✓ |
-| PUT | `/api/polls/:id` | 更新投票 | ✓ |
-| DELETE | `/api/polls/:id` | 删除投票 | ✓ |
-| GET | `/api/polls/my/list` | 获取我创建的投票 | ✓ |
-| POST | `/api/votes/:id` | 提交投票 | ✓ |
-| GET | `/api/votes/:id/check` | 检查是否已投票 | ✓ |
-| GET | `/api/votes/:id/results` | 获取投票结果 | ✗ |
-| POST | `/api/ai/generate-poll` | AI 生成投票内容 | ✓ |
+| 方法   | 地址                     | 说明             | 需认证 |
+| ------ | ------------------------ | ---------------- | :----: |
+| POST   | `/api/auth/register`     | 用户注册         |   ✗    |
+| POST   | `/api/auth/login`        | 用户登录         |   ✗    |
+| GET    | `/api/auth/me`           | 获取当前用户信息 |   ✓    |
+| GET    | `/api/polls`             | 获取投票列表     |   ✗    |
+| GET    | `/api/polls/:id`         | 获取投票详情     |   ✗    |
+| POST   | `/api/polls`             | 创建投票         |   ✓    |
+| PUT    | `/api/polls/:id`         | 更新投票         |   ✓    |
+| DELETE | `/api/polls/:id`         | 删除投票         |   ✓    |
+| GET    | `/api/polls/my/list`     | 获取我创建的投票 |   ✓    |
+| POST   | `/api/votes/:id`         | 提交投票         |   ✓    |
+| GET    | `/api/votes/:id/check`   | 检查是否已投票   |   ✓    |
+| GET    | `/api/votes/:id/results` | 获取投票结果     |   ✗    |
+| POST   | `/api/ai/generate-poll`  | AI 生成投票内容  |   ✓    |
 
 ---
 
