@@ -121,8 +121,8 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
         });
     }
 
-    const today = new Date().toDateString();
-    const key = userId + '_' + today;
+    const today = new Date().toISOString().split('T')[0]; // 统一使用 UTC 日期
+    const key = `${userId}_${today}`;
     if (userGenerateCount[key] && userGenerateCount[key] >= 10) {
         return res.status(429).json({
             code: 429,
@@ -249,3 +249,13 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+
+// 每小时清理一次过期的频率限制记录
+setInterval(() => {
+    const today = new Date().toISOString().split('T')[0];
+    for (const key in userGenerateCount) {
+        if (!key.endsWith(today)) {
+            delete userGenerateCount[key];
+        }
+    }
+}, 3600000);
