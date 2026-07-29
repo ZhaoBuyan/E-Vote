@@ -1,3 +1,7 @@
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your_super_secret_key_change_me') {
+    console.error('❌ 错误: JWT_SECRET 未配置或使用默认值，请在 .env 中设置强密钥');
+    process.exit(1);
+}
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
