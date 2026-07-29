@@ -217,12 +217,21 @@ async function updatePoll(req, res) {
 
 async function deletePoll(req, res) {
     const { id } = req.params;
+    const isAdmin = req.user.role === 'admin';
 
     try {
-        const [result] = await pool.query(
-            'DELETE FROM polls WHERE id = ? AND created_by = ?',
-            [id, req.user.id]
-        );
+        let query, params;
+        if (isAdmin) {
+            // 管理员：可以删除任何人的投票
+            query = 'DELETE FROM polls WHERE id = ?';
+            params = [id];
+        } else {
+            // 普通用户：只能删除自己创建的投票
+            query = 'DELETE FROM polls WHERE id = ? AND created_by = ?';
+            params = [id, req.user.id];
+        }
+
+        const [result] = await pool.query(query, params);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({
