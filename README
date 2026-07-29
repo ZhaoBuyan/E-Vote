@@ -81,7 +81,7 @@ e-vote/
 ### Step 1: Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/e-vote.git
+git clone https://github.com/ZhaoBuyan/e-vote.git
 cd e-vote
 ```
 
@@ -311,7 +311,7 @@ e-vote/
 ### 第一步：克隆项目
 
 ```bash
-git clone https://github.com/yourusername/e-vote.git
+git clone https://github.com/ZhaoBuyan/e-vote.git
 cd e-vote
 ```
 
