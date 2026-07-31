@@ -1,12 +1,19 @@
 // public/js/result.js
 // E-Vote 在线投票系统 - 投票结果页脚本
-// 功能：展示投票结果图表，支持饼图/柱状图切换，1秒自动刷新
+// 功能：展示投票结果图表，支持饼图/柱状图切换，WebSocket 实时推送
 
 let pollId = null
 let myChart = null
 let currentChartType = 'pie'
-let timer = null
-let isLoading = false // 防止请求重叠
+let socket = null
+let isConnected = false
+let isLoading = false
+let pollingTimer = null
+
+// ============================================================
+// 缓存最新数据（用于图表切换时重绘）
+// ============================================================
+let currentData = { totalVoters: 0, options: [] }
 
 // ============================================================
 // 页面初始化
@@ -24,7 +31,10 @@ $(function () {
         if (myChart) myChart.resize()
     })
 
-    // 加载数据
+    // ✅ 连接 WebSocket
+    connectSocket()
+
+    // 加载数据（首次加载）
     loadResults()
 
     // 图表切换：饼图
@@ -35,7 +45,7 @@ $(function () {
             .removeClass('btn-primary')
             .addClass('btn-outline-primary')
         currentChartType = 'pie'
-        loadResults()
+        renderChart(currentData.options, currentData.totalVoters)
     })
 
     // 图表切换：柱状图
@@ -46,25 +56,91 @@ $(function () {
             .removeClass('btn-primary')
             .addClass('btn-outline-primary')
         currentChartType = 'bar'
-        loadResults()
+        renderChart(currentData.options, currentData.totalVoters)
     })
 
-    // 启动自动刷新（1秒轮询）
-    startAutoRefresh()
-
-    // 页面离开时清除定时器
+    // 页面离开时断开连接
     $(window).on('beforeunload', function () {
-        if (timer) clearInterval(timer)
+        if (socket) {
+            socket.emit('leave-poll', pollId)
+            socket.disconnect()
+        }
+        if (pollingTimer) clearInterval(pollingTimer)
     })
 })
 
 // ============================================================
-// 数据加载函数（带防重叠锁）
+// ✅ WebSocket 连接
+// ============================================================
+function connectSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const host = window.location.host
+    socket = io(protocol + '//' + host, {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
+    })
+
+    socket.on('connect', function () {
+        console.log('✅ WebSocket 已连接')
+        isConnected = true
+        // 加入当前投票的房间
+        socket.emit('join-poll', pollId)
+        $('#liveTip').text('⚡ 实时推送已连接').css('color', '#28a745')
+        // 清除轮询降级（如果有）
+        if (pollingTimer) {
+            clearInterval(pollingTimer)
+            pollingTimer = null
+        }
+    })
+
+    socket.on('disconnect', function () {
+        console.log('❌ WebSocket 已断开')
+        isConnected = false
+        $('#liveTip').text('⚡ 连接已断开，尝试重新连接...').css('color', '#dc3545')
+        // 启动轮询降级
+        startPollingFallback()
+    })
+
+    socket.on('connect_error', function (err) {
+        console.warn('⚠️ WebSocket 连接错误:', err.message)
+        $('#liveTip').text('⏳ 连接中... 使用轮询模式').css('color', '#856404')
+        // 启动轮询降级
+        startPollingFallback()
+    })
+
+    // ✅ 监听投票更新事件
+    socket.on('vote-update', function (data) {
+        console.log('📡 收到投票更新:', data)
+        currentData = {
+            totalVoters: data.totalVoters,
+            options: data.options
+        }
+        // 更新页面
+        renderResults(currentData)
+        $('#liveTip').text('⚡ 实时推送已连接').css('color', '#28a745')
+    })
+}
+
+// ============================================================
+// ✅ 轮询降级（WebSocket 不可用时备用）
+// ============================================================
+function startPollingFallback() {
+    if (pollingTimer) return
+    pollingTimer = setInterval(function () {
+        if (!isConnected && !isLoading) {
+            loadResults()
+        }
+    }, 3000) // 降级时 3 秒轮询
+}
+
+// ============================================================
+// 数据加载函数
 // ============================================================
 function loadResults() {
-    // 如果上一次请求还没回来，直接跳过本次请求
     if (isLoading) {
-        console.log('⏳ 上一次请求尚未返回，跳过本次轮询')
+        console.log('⏳ 上一次请求尚未返回，跳过本次请求')
         return
     }
 
@@ -75,13 +151,16 @@ function loadResults() {
         method: 'GET',
         success: function (res) {
             if (res.code === 200) {
-                renderResults(res.data)
+                currentData = {
+                    totalVoters: res.data.totalVoters,
+                    options: res.data.options
+                }
+                renderResults(currentData)
             }
             isLoading = false
         },
         error: function (xhr) {
             isLoading = false
-            // 只在首次加载或网络断开时显示错误，避免频繁弹窗
             if (xhr.status === 404) {
                 $('#resultTitle').text('投票不存在')
             }
@@ -94,10 +173,10 @@ function loadResults() {
 // 渲染结果：标题 + 总人数 + 图表 + 进度条列表
 // ============================================================
 function renderResults(data) {
-    $('#resultTitle').text(data.title)
+    $('#resultTitle').text(data.title || $('#resultTitle').text())
     $('#totalVoters').text(data.totalVoters)
 
-    // ✅ 新增：显示“最多可选 X 项”
+    // 显示“最多可选 X 项”
     if (data.maxChoices && data.maxChoices > 0 && data.type === 'multi') {
         $('#resultMaxChoices').text('（最多可选 ' + data.maxChoices + ' 项）')
     } else {
@@ -114,7 +193,6 @@ function renderResults(data) {
 function renderChart(options, totalVoters) {
     if (!myChart) return
 
-    // 如果没有任何数据，显示空状态
     if (!options || options.length === 0 || totalVoters === 0) {
         myChart.clear()
         myChart.setOption({
@@ -172,7 +250,6 @@ function renderChart(options, totalVoters) {
             ]
         }
     } else {
-        // 柱状图
         const labels = options.map(function (o) {
             return o.text
         })
@@ -293,45 +370,6 @@ function escapeHtml(text) {
     const div = document.createElement('div')
     div.textContent = text
     return div.innerHTML
-}
-
-// ============================================================
-// 1秒自动刷新（带页面可见性管理）
-// ============================================================
-function startAutoRefresh() {
-    if (timer) clearInterval(timer)
-
-    timer = setInterval(function () {
-        // 只在页面可见且未锁定时刷新
-        if (!document.hidden && !isLoading) {
-            loadResults()
-        }
-    }, 1000)
-
-    // 监听页面可见性变化
-    document.addEventListener('visibilitychange', function () {
-        if (document.hidden) {
-            // 页面隐藏（切换标签页），清除定时器，减少资源浪费
-            if (timer) {
-                clearInterval(timer)
-                timer = null
-                console.log('⏸️ 页面隐藏，已暂停自动刷新')
-            }
-        } else {
-            // 页面重新可见，立即刷新一次并重启定时器
-            console.log('▶️ 页面可见，恢复自动刷新')
-            if (!isLoading) {
-                loadResults()
-            }
-            if (!timer) {
-                timer = setInterval(function () {
-                    if (!document.hidden && !isLoading) {
-                        loadResults()
-                    }
-                }, 1000)
-            }
-        }
-    })
 }
 
 // ============================================================

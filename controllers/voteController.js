@@ -114,6 +114,51 @@ async function submitVote(req, res) {
 
         await conn.commit()
 
+        // ============================================================
+        // ✅ 新增：投票成功后，广播最新结果给所有订阅者
+        // ============================================================
+        try {
+            const io = req.app.get('io')
+
+            // 查询最新投票结果
+            const [results] = await pool.execute(
+                `SELECT o.id, o.option_text, COUNT(v.id) as vote_count
+                 FROM options o
+                 LEFT JOIN votes v ON o.id = v.option_id
+                 WHERE o.poll_id = ?
+                 GROUP BY o.id, o.option_text
+                 ORDER BY o.sort_order ASC`,
+                [pollId]
+            )
+
+            const [totalResult] = await pool.execute(
+                'SELECT COUNT(DISTINCT user_id) as total_voters FROM votes WHERE poll_id = ?',
+                [pollId]
+            )
+
+            const totalVoters = totalResult[0].total_voters
+
+            // 计算百分比
+            const optionsWithPercent = results.map((opt) => ({
+                id: opt.id,
+                text: opt.option_text,
+                count: opt.vote_count,
+                percentage:
+                    totalVoters > 0 ? Math.round((opt.vote_count / totalVoters) * 100 * 10) / 10 : 0
+            }))
+
+            // 广播到该投票的房间
+            io.to(`poll-${pollId}`).emit('vote-update', {
+                totalVoters: totalVoters,
+                options: optionsWithPercent
+            })
+
+            console.log(`📡 已广播投票更新: poll-${pollId}`)
+        } catch (broadcastErr) {
+            // 广播失败不影响投票主流程
+            console.warn('⚠️ 广播投票更新失败:', broadcastErr.message)
+        }
+
         res.status(201).json({
             code: 201,
             msg: '投票成功',
