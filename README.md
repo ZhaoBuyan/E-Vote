@@ -1,17 +1,20 @@
+---
+
+## 📁 README.md
+
+
 # E-Vote · AI 智能投票系统
 
-> **AI 生成题目选项 · 实时推送 · 防刷票 — 全栈实战项目**
+> **AI 生成 · 实时推送 · 防刷票 — 全栈实战项目**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-18.x-green.svg)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-4.x-blue.svg)](https://expressjs.com/)
 [![MySQL](https://img.shields.io/badge/MySQL-8.x-orange.svg)](https://mysql.com/)
 
-E-Vote 是一个全栈在线投票系统，支持 **AI 智能生成投票**、**WebSocket 实时推送**、**防刷票机制** 和 **ECharts 可视化图表**，从需求分析到部署上线，完整覆盖 B/S 架构应用开发全流程。
-
 ---
 
-## ✨ 核心功能
+### ✨ 核心功能
 
 | 功能               | 说明                                                                    |
 | ------------------ | ----------------------------------------------------------------------- |
@@ -25,9 +28,7 @@ E-Vote 是一个全栈在线投票系统，支持 **AI 智能生成投票**、**
 | 🖱️ **多选限制**    | 多选投票支持设置最大可选数，防止刷票                                    |
 | 📱 **响应式设计**  | Bootstrap 5 适配 PC / 平板 / 手机                                       |
 
----
-
-## 🛠️ 技术栈
+### 🛠️ 技术栈
 
 | 层级     | 技术                                    |
 | -------- | --------------------------------------- |
@@ -39,10 +40,9 @@ E-Vote 是一个全栈在线投票系统，支持 **AI 智能生成投票**、**
 | 认证     | JWT · bcryptjs                          |
 | AI       | DeepSeek API（OpenAI SDK）              |
 | 代码规范 | ESLint · Prettier                       |
+| 容器化   | Docker Compose（MySQL + Redis）         |
 
----
-
-## 📁 项目结构
+### 📁 项目结构
 
 ```
 e-vote/
@@ -69,20 +69,41 @@ e-vote/
 │   └── js/                # 前端脚本
 ├── sql/
 │   └── init.sql           # 数据库建表脚本
+├── docker-compose.yml     # MySQL + Redis 容器配置
 ├── .env.example           # 环境变量模板
 └── README.md
 ```
 
----
+### 📦 安装与运行
 
-## 📦 安装与运行
-
-### 环境要求
+#### 环境要求
 
 - Node.js 14+
 - MySQL 5.7+ / 8.0
+- Docker（可选，推荐）
 
-### 安装步骤
+#### 方式一：Docker Compose（推荐）
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/ZhaoBuyan/E-Vote.git
+cd E-Vote
+
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env，填写 JWT_SECRET 和数据库配置
+
+# 3. 启动 MySQL + Redis
+docker-compose up -d
+
+# 4. 安装依赖并启动
+npm install
+npm run dev
+```
+
+访问 `http://localhost:3000`
+
+#### 方式二：本地运行（手动安装 MySQL）
 
 ```bash
 # 1. 克隆项目
@@ -103,11 +124,7 @@ mysql -u root -p < sql/init.sql
 npm run dev
 ```
 
-访问 `http://localhost:3000`
-
----
-
-## 🔑 默认账号
+### 🔑 默认账号
 
 | 字段   | 值                         |
 | ------ | -------------------------- |
@@ -116,9 +133,7 @@ npm run dev
 
 > 密码哈希生成命令：`node -e "console.log(require('bcryptjs').hashSync('你的密码', 10))"`
 
----
-
-## 📡 API 接口
+### 📡 API 接口
 
 | 方法   | 地址                     | 说明         | 认证 |
 | ------ | ------------------------ | ------------ | :--: |
@@ -132,9 +147,7 @@ npm run dev
 | GET    | `/api/votes/:id/results` | 获取投票结果 |  ❌  |
 | POST   | `/api/ai/generate-poll`  | AI 生成投票  |  ✅  |
 
----
-
-## 💡 技术亮点
+### 💡 技术亮点
 
 - **WebSocket 实时推送**：投票完成后，所有在线结果页即时更新，取代传统轮询
 - **自动降级**：WebSocket 连接失败时自动切换 3 秒轮询，保证可用性
@@ -146,6 +159,94 @@ npm run dev
 
 ---
 
-## 📝 开源协议
+### ✨ Features
+
+| Feature                   | Description                                                      |
+| ------------------------- | ---------------------------------------------------------------- |
+| 🤖 **AI Generation**      | Enter a topic, AI auto-generates title, description, and options |
+| ⚡ **Real-time Push**     | WebSocket-based live updates, no manual refresh needed           |
+| 📊 **Visual Charts**      | ECharts pie/bar chart toggle with real-time data                 |
+| 🛡️ **Anti-spam**          | MySQL unique key prevents duplicate voting                       |
+| 📋 **Batch Fill**         | Paste title/desc/options line by line with smart parsing         |
+| 🎯 **Quick Templates**    | One-click templates for common scenarios                         |
+| 🔄 **Auto Fallback**      | WebSocket unavailable → auto switch to 3s polling                |
+| 🖱️ **Multi-choice Limit** | Set max selectable options for multi-choice polls                |
+| 📱 **Responsive**         | Bootstrap 5 for PC / tablet / mobile                             |
+
+### 🛠️ Tech Stack
+
+| Layer      | Technology                              |
+| ---------- | --------------------------------------- |
+| Frontend   | HTML5 · CSS3 · Bootstrap 5 · jQuery 3.x |
+| Charts     | ECharts 5.x                             |
+| Realtime   | Socket.IO                               |
+| Backend    | Node.js · Express 4.x                   |
+| Database   | MySQL 8.x                               |
+| Auth       | JWT · bcryptjs                          |
+| AI         | DeepSeek API (OpenAI SDK)               |
+| Code Style | ESLint · Prettier                       |
+| Container  | Docker Compose (MySQL + Redis)          |
+
+### 📦 Installation & Running
+
+#### Prerequisites
+
+- Node.js 14+
+- MySQL 5.7+ / 8.0
+- Docker (optional, recommended)
+
+#### Option 1: Docker Compose (Recommended)
+
+```bash
+git clone https://github.com/ZhaoBuyan/E-Vote.git
+cd E-Vote
+cp .env.example .env
+# Edit .env with your config
+docker-compose up -d
+npm install
+npm run dev
+```
+
+Visit `http://localhost:3000`
+
+#### Option 2: Local (Manual MySQL)
+
+```bash
+git clone https://github.com/ZhaoBuyan/E-Vote.git
+cd E-Vote
+npm install
+cp .env.example .env
+# Edit .env with your config
+mysql -u root -p < sql/init.sql
+npm run dev
+```
+
+### 🔑 Default Account
+
+| Field    | Value                                         |
+| -------- | --------------------------------------------- |
+| Username | `admin`                                       |
+| Password | The password you set when generating the hash |
+
+> Generate password hash: `node -e "console.log(require('bcryptjs').hashSync('your_password', 10))"`
+
+### 💡 Technical Highlights
+
+- **WebSocket Real-time**: Instant updates after voting, replacing traditional polling
+- **Auto Fallback**: WebSocket failure → auto switch to 3s polling
+- **Anti-spam**: MySQL `UNIQUE KEY (user_id, poll_id)` prevents duplicate votes
+- **AI Scene Recognition**: Auto-detects "selection/satisfaction/event" scenarios
+- **User Content Priority**: User-provided options are fully preserved
+- **Connection Pool + Transactions**: Atomic operations for data consistency
+- **Code Quality**: ESLint + Prettier for consistent code style
+
+---
+
+## 📝 License
 
 MIT © [ZhaoBuyan](https://github.com/ZhaoBuyan)
+
+```
+
+---
+```
