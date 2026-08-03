@@ -5,6 +5,7 @@ const express = require('express')
 const router = express.Router()
 const { authMiddleware } = require('../middleware/auth')
 const OpenAI = require('openai')
+const redisClient = require('../config/redis') // 新增：引入 Redis 客户端
 
 // ============================================================
 // 初始化 DeepSeek 客户端
@@ -104,7 +105,6 @@ function getMockPoll(topic, desc, existingOptions) {
     const index = Math.floor(Math.random() * templates.length)
     const template = templates[index]
 
-    // 如果用户提供了选项，使用用户的；否则用模板的
     const options =
         existingOptions && existingOptions.length > 0
             ? existingOptions
@@ -116,11 +116,6 @@ function getMockPoll(topic, desc, existingOptions) {
         options: options
     }
 }
-
-// ============================================================
-// 频率限制
-// ============================================================
-const userGenerateCount = {}
 
 // ============================================================
 // 路由：AI 生成投票
@@ -137,13 +132,24 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
         })
     }
 
-    const today = new Date().toISOString().split('T')[0] // 统一使用 UTC 日期
-    const key = `${userId}_${today}`
-    if (userGenerateCount[key] && userGenerateCount[key] >= 10) {
-        return res.status(429).json({
-            code: 429,
-            msg: '今日生成次数已达上限（10次），请明天再试'
-        })
+    const today = new Date().toISOString().split('T')[0]
+    const key = `user:${userId}:generate:${today}`
+
+    // ============================================================
+    // 使用 Redis 进行频率限制
+    // ============================================================
+    try {
+        // 获取当前计数
+        const count = await redisClient.get(key)
+        if (count && parseInt(count) >= 10) {
+            return res.status(429).json({
+                code: 429,
+                msg: '今日生成次数已达上限（10次），请明天再试'
+            })
+        }
+    } catch (redisErr) {
+        // Redis 连接失败时，记录但继续执行（降级）
+        console.warn('⚠️ Redis 读取失败，跳过频率限制检查:', redisErr.message)
     }
 
     console.log('🔍 调用 DeepSeek API')
@@ -264,7 +270,24 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
             finalOptions = finalOptions.slice(0, 10)
         }
 
-        userGenerateCount[key] = (userGenerateCount[key] || 0) + 1
+        // ============================================================
+        // 更新 Redis 计数器
+        // ============================================================
+        try {
+            const newCount = await redisClient.incr(key)
+            if (newCount === 1) {
+                // 当天结束时间（秒）
+                const now = new Date()
+                const endOfDay = new Date(now)
+                endOfDay.setHours(23, 59, 59, 999)
+                const ttl = Math.floor((endOfDay - now) / 1000)
+                await redisClient.expire(key, ttl)
+            }
+            console.log(`📊 Redis 计数更新: ${key} -> ${newCount}`)
+        } catch (redisErr) {
+            console.warn('⚠️ Redis 计数更新失败:', redisErr.message)
+            // 不计入次数，但不影响主流程
+        }
 
         console.log('✅ DeepSeek API 调用成功')
         return res.json({
@@ -280,13 +303,26 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
         console.warn('⚠️ API 调用失败，使用 Mock 回退:', err.message)
 
         const mockData = getMockPoll(effectiveTopic, existingDesc || '', existingOptions || [])
-        userGenerateCount[key] = (userGenerateCount[key] || 0) + 1
 
         var msg = '已使用示例数据填充（网络连接异常）'
         if (err.message && err.message.includes('API key')) {
             msg = '已使用示例数据填充（API Key 未配置或无效）'
         } else if (err.message && err.message.includes('timeout')) {
             msg = '已使用示例数据填充（API 响应超时）'
+        }
+
+        // Mock 数据也计入次数（防止用户滥用）
+        try {
+            const newCount = await redisClient.incr(key)
+            if (newCount === 1) {
+                const now = new Date()
+                const endOfDay = new Date(now)
+                endOfDay.setHours(23, 59, 59, 999)
+                const ttl = Math.floor((endOfDay - now) / 1000)
+                await redisClient.expire(key, ttl)
+            }
+        } catch (redisErr) {
+            // 忽略 Redis 错误
         }
 
         return res.json({
@@ -299,13 +335,3 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
 })
 
 module.exports = router
-
-// 每小时清理一次过期的频率限制记录
-setInterval(() => {
-    const today = new Date().toISOString().split('T')[0]
-    for (const key in userGenerateCount) {
-        if (!key.endsWith(today)) {
-            delete userGenerateCount[key]
-        }
-    }
-}, 3600000)
