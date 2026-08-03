@@ -1,6 +1,3 @@
----
-
-```markdown
 # E-Vote · AI 智能投票系统
 
 > **AI 生成 · 实时推送 · 防刷票 — 全栈实战项目**
@@ -287,8 +284,3 @@ npm test
 ## 📝 License
 
 MIT © [ZhaoBuyan](https://github.com/ZhaoBuyan)
-
-```
-
----
-```
