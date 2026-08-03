@@ -1,3 +1,4 @@
+const logger = require('./logger')
 const mysql = require('mysql2/promise')
 require('dotenv').config()
 
@@ -16,11 +17,11 @@ const pool = mysql.createPool({
 // 测试连接
 pool.getConnection()
     .then((conn) => {
-        console.log('✅ 数据库连接成功')
+        logger.info('✅ 数据库连接成功')
         conn.release()
     })
     .catch((err) => {
-        console.error('❌ 数据库连接失败:', err.message)
+        logger.error('❌ 数据库连接失败:', err.message)
     })
 
 module.exports = pool

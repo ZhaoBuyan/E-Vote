@@ -1,11 +1,12 @@
 // routes/ai.js
 // DeepSeek API + Mock 回退（智能识别场景，严格保留用户选项）
 
+const logger = require('../config/logger')
 const express = require('express')
 const router = express.Router()
 const { authMiddleware } = require('../middleware/auth')
 const OpenAI = require('openai')
-const redisClient = require('../config/redis') // 新增：引入 Redis 客户端
+const redisClient = require('../config/redis')
 
 // ============================================================
 // 初始化 DeepSeek 客户端
@@ -139,7 +140,6 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
     // 使用 Redis 进行频率限制
     // ============================================================
     try {
-        // 获取当前计数
         const count = await redisClient.get(key)
         if (count && parseInt(count) >= 10) {
             return res.status(429).json({
@@ -148,15 +148,14 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
             })
         }
     } catch (redisErr) {
-        // Redis 连接失败时，记录但继续执行（降级）
-        console.warn('⚠️ Redis 读取失败，跳过频率限制检查:', redisErr.message)
+        logger.warn('⚠️ Redis 读取失败，跳过频率限制检查:', redisErr.message)
     }
 
-    console.log('🔍 调用 DeepSeek API')
-    console.log('   - 主题:', effectiveTopic)
-    console.log('   - 已有标题:', existingTitle || '(无)')
-    console.log('   - 已有描述:', existingDesc || '(无)')
-    console.log('   - 已有选项数量:', existingOptions ? existingOptions.length : 0)
+    logger.info('🔍 调用 DeepSeek API')
+    logger.info(`   - 主题: ${effectiveTopic}`)
+    logger.info(`   - 已有标题: ${existingTitle || '(无)'}`)
+    logger.info(`   - 已有描述: ${existingDesc || '(无)'}`)
+    logger.info(`   - 已有选项数量: ${existingOptions ? existingOptions.length : 0}`)
 
     // ============================================================
     // System Prompt（优化版：场景感知 + 示例 + 格式约束）
@@ -250,7 +249,7 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
         try {
             result = JSON.parse(content)
         } catch (parseError) {
-            console.error('❌ JSON 解析失败:', content)
+            logger.error('❌ JSON 解析失败:', content)
             throw new Error('AI 返回的数据格式异常')
         }
 
@@ -276,20 +275,18 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
         try {
             const newCount = await redisClient.incr(key)
             if (newCount === 1) {
-                // 当天结束时间（秒）
                 const now = new Date()
                 const endOfDay = new Date(now)
                 endOfDay.setHours(23, 59, 59, 999)
                 const ttl = Math.floor((endOfDay - now) / 1000)
                 await redisClient.expire(key, ttl)
             }
-            console.log(`📊 Redis 计数更新: ${key} -> ${newCount}`)
+            logger.info(`📊 Redis 计数更新: ${key} -> ${newCount}`)
         } catch (redisErr) {
-            console.warn('⚠️ Redis 计数更新失败:', redisErr.message)
-            // 不计入次数，但不影响主流程
+            logger.warn('⚠️ Redis 计数更新失败:', redisErr.message)
         }
 
-        console.log('✅ DeepSeek API 调用成功')
+        logger.info('✅ DeepSeek API 调用成功')
         return res.json({
             code: 200,
             msg: '生成成功',
@@ -300,7 +297,7 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
             }
         })
     } catch (err) {
-        console.warn('⚠️ API 调用失败，使用 Mock 回退:', err.message)
+        logger.warn('⚠️ API 调用失败，使用 Mock 回退:', err.message)
 
         const mockData = getMockPoll(effectiveTopic, existingDesc || '', existingOptions || [])
 

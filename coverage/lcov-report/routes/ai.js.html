@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">82.56% </span>
+                <span class="strong">82.72% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>90/109</span>
+                <span class='fraction'>91/110</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">87.37% </span>
+                <span class="strong">87.5% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>90/103</span>
+                <span class='fraction'>91/104</span>
             </div>
         
             
@@ -397,12 +397,10 @@
 <a name='L332'></a><a href='#L332'>332</a>
 <a name='L333'></a><a href='#L333'>333</a>
 <a name='L334'></a><a href='#L334'>334</a>
-<a name='L335'></a><a href='#L335'>335</a>
-<a name='L336'></a><a href='#L336'>336</a>
-<a name='L337'></a><a href='#L337'>337</a>
-<a name='L338'></a><a href='#L338'>338</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L335'></a><a href='#L335'>335</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -541,7 +539,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -550,7 +547,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -678,7 +674,6 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -688,7 +683,6 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
@@ -740,11 +734,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// routes/ai.js
 // DeepSeek API + Mock 回退（智能识别场景，严格保留用户选项）
 &nbsp;
+const logger = require('../config/logger')
 const express = require('express')
 const router = express.Router()
 const { authMiddleware } = require('../middleware/auth')
 const OpenAI = require('openai')
-const redisClient = require('../config/redis') // 新增：引入 Redis 客户端
+const redisClient = require('../config/redis')
 &nbsp;
 // ============================================================
 // 初始化 DeepSeek 客户端
@@ -878,7 +873,6 @@ router.post('/generate-poll', authMiddleware, async (req, res) =&gt; {
     // 使用 Redis 进行频率限制
     // ============================================================
     try {
-        // 获取当前计数
         const count = await redisClient.get(key)
         if (count &amp;&amp; parseInt(count) &gt;= 10) {
             return res.status(429).json({
@@ -887,15 +881,14 @@ router.post('/generate-poll', authMiddleware, async (req, res) =&gt; {
             })
         }
     } catch (redisErr) {
-        // Redis 连接失败时，记录但继续执行（降级）
-<span class="cstat-no" title="statement not covered" >        console.warn('⚠️ Redis 读取失败，跳过频率限制检查:', redisErr.message)</span>
+<span class="cstat-no" title="statement not covered" >        logger.warn('⚠️ Redis 读取失败，跳过频率限制检查:', redisErr.message)</span>
     }
 &nbsp;
-    console.log('🔍 调用 DeepSeek API')
-    console.log('   - 主题:', effectiveTopic)
-    console.log('   - 已有标题:', existingTitle || '(无)')
-    console.log('   - 已有描述:', existingDesc || '(无)')
-    console.log('   - 已有选项数量:', existingOptions ? <span class="branch-0 cbranch-no" title="branch not covered" >existingOptions.length </span>: 0)
+    logger.info('🔍 调用 DeepSeek API')
+    logger.info(`   - 主题: ${effectiveTopic}`)
+    logger.info(`   - 已有标题: ${existingTitle || '(无)'}`)
+    logger.info(`   - 已有描述: ${existingDesc || '(无)'}`)
+    logger.info(`   - 已有选项数量: ${existingOptions ? <span class="branch-0 cbranch-no" title="branch not covered" >existingOptions.length </span>: 0}`)
 &nbsp;
     // ============================================================
     // System Prompt（优化版：场景感知 + 示例 + 格式约束）
@@ -989,7 +982,7 @@ router.post('/generate-poll', authMiddleware, async (req, res) =&gt; {
         try {
             result = JSON.parse(content)
         } catch (parseError) {
-<span class="cstat-no" title="statement not covered" >            console.error('❌ JSON 解析失败:', content)</span>
+<span class="cstat-no" title="statement not covered" >            logger.error('❌ JSON 解析失败:', content)</span>
 <span class="cstat-no" title="statement not covered" >            throw new Error('AI 返回的数据格式异常')</span>
         }
 &nbsp;
@@ -1015,20 +1008,18 @@ router.post('/generate-poll', authMiddleware, async (req, res) =&gt; {
         try {
             const newCount = await redisClient.incr(key)
             <span class="missing-if-branch" title="else path not taken" >E</span>if (newCount === 1) {
-                // 当天结束时间（秒）
                 const now = new Date()
                 const endOfDay = new Date(now)
                 endOfDay.setHours(23, 59, 59, 999)
                 const ttl = Math.floor((endOfDay - now) / 1000)
                 await redisClient.expire(key, ttl)
             }
-            console.log(`📊 Redis 计数更新: ${key} -&gt; ${newCount}`)
+            logger.info(`📊 Redis 计数更新: ${key} -&gt; ${newCount}`)
         } catch (redisErr) {
-<span class="cstat-no" title="statement not covered" >            console.warn('⚠️ Redis 计数更新失败:', redisErr.message)</span>
-            // 不计入次数，但不影响主流程
+<span class="cstat-no" title="statement not covered" >            logger.warn('⚠️ Redis 计数更新失败:', redisErr.message)</span>
         }
 &nbsp;
-        console.log('✅ DeepSeek API 调用成功')
+        logger.info('✅ DeepSeek API 调用成功')
         return res.json({
             code: 200,
             msg: '生成成功',
@@ -1039,7 +1030,7 @@ router.post('/generate-poll', authMiddleware, async (req, res) =&gt; {
             }
         })
     } catch (err) {
-        console.warn('⚠️ API 调用失败，使用 Mock 回退:', err.message)
+        logger.warn('⚠️ API 调用失败，使用 Mock 回退:', err.message)
 &nbsp;
         const mockData = getMockPoll(effectiveTopic, existingDesc || '', existingOptions || [])
 &nbsp;
@@ -1081,7 +1072,7 @@ module.exports = router
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-08-03T08:18:46.693Z
+                at 2026-08-03T08:43:11.934Z
             </div>
         <script src="../prettify.js"></script>
         <script>
