@@ -1,8 +1,6 @@
 ---
 
-## 📁 README.md
-
-
+```markdown
 # E-Vote · AI 智能投票系统
 
 > **AI 生成 · 实时推送 · 防刷票 — 全栈实战项目**
@@ -13,6 +11,8 @@
 [![MySQL](https://img.shields.io/badge/MySQL-8.x-orange.svg)](https://mysql.com/)
 
 ---
+
+## 中文
 
 ### ✨ 核心功能
 
@@ -27,6 +27,9 @@
 | 🔄 **自动降级**    | WebSocket 不可用时自动切换 3 秒轮询，保障可用性                         |
 | 🖱️ **多选限制**    | 多选投票支持设置最大可选数，防止刷票                                    |
 | 📱 **响应式设计**  | Bootstrap 5 适配 PC / 平板 / 手机                                       |
+| 📝 **结构化日志**  | Winston 日志系统，JSON 格式输出，支持日志轮转                           |
+| 🔒 **安全加固**    | Helmet 安全头 + 分层限流（全局/API/敏感接口）                           |
+| 🧪 **单元测试**    | Jest 测试框架，覆盖核心控制器（覆盖率 74%+）                            |
 
 ### 🛠️ 技术栈
 
@@ -37,8 +40,12 @@
 | 实时通信 | Socket.IO                               |
 | 后端     | Node.js · Express 4.x                   |
 | 数据库   | MySQL 8.x                               |
+| 缓存     | Redis 7.x                               |
 | 认证     | JWT · bcryptjs                          |
 | AI       | DeepSeek API（OpenAI SDK）              |
+| 日志     | Winston                                 |
+| 安全     | Helmet · express-rate-limit             |
+| 测试     | Jest · Supertest                        |
 | 代码规范 | ESLint · Prettier                       |
 | 容器化   | Docker Compose（MySQL + Redis）         |
 
@@ -48,7 +55,8 @@
 e-vote/
 ├── app.js                 # 应用入口（含 Socket.IO 初始化）
 ├── config/
-│   └── db.js              # 数据库连接池
+│   ├── db.js              # 数据库连接池
+│   └── logger.js          # Winston 日志配置
 ├── controllers/
 │   ├── authController.js  # 认证逻辑
 │   ├── pollController.js  # 投票 CRUD
@@ -67,10 +75,17 @@ e-vote/
 │   ├── result.html        # 结果页（WebSocket 实时）
 │   ├── create-poll.html   # 创建投票（AI + 批量填充）
 │   └── js/                # 前端脚本
+├── tests/                 # 单元测试（Jest）
+│   ├── authController.test.js
+│   ├── pollController.test.js
+│   ├── voteController.test.js
+│   └── aiController.test.js
 ├── sql/
 │   └── init.sql           # 数据库建表脚本
+├── logs/                  # 日志文件（自动生成）
 ├── docker-compose.yml     # MySQL + Redis 容器配置
 ├── .env.example           # 环境变量模板
+├── jest.config.js         # Jest 测试配置
 └── README.md
 ```
 
@@ -124,6 +139,12 @@ mysql -u root -p < sql/init.sql
 npm run dev
 ```
 
+#### 运行测试
+
+```bash
+npm test
+```
+
 ### 🔑 默认账号
 
 | 字段   | 值                         |
@@ -156,8 +177,13 @@ npm run dev
 - **用户内容优先**：批量填充时，用户提供的选项被完全保留，AI 仅优化标题/描述
 - **连接池 + 事务**：投票创建与提交均使用数据库事务，保证数据一致性
 - **代码规范**：集成 ESLint + Prettier，统一代码风格
+- **结构化日志**：Winston 日志系统，JSON 格式输出，支持日志轮转和按级别分类
+- **安全加固**：Helmet 安全头 + 分层限流（全局/API/敏感接口）
+- **单元测试**：Jest 覆盖核心控制器，覆盖率 74%+
 
 ---
+
+## English
 
 ### ✨ Features
 
@@ -172,6 +198,9 @@ npm run dev
 | 🔄 **Auto Fallback**      | WebSocket unavailable → auto switch to 3s polling                |
 | 🖱️ **Multi-choice Limit** | Set max selectable options for multi-choice polls                |
 | 📱 **Responsive**         | Bootstrap 5 for PC / tablet / mobile                             |
+| 📝 **Structured Logging** | Winston logger with JSON format and log rotation                 |
+| 🔒 **Security Hardening** | Helmet + layered rate limiting                                   |
+| 🧪 **Unit Testing**       | Jest test coverage for core controllers (74%+)                   |
 
 ### 🛠️ Tech Stack
 
@@ -182,8 +211,12 @@ npm run dev
 | Realtime   | Socket.IO                               |
 | Backend    | Node.js · Express 4.x                   |
 | Database   | MySQL 8.x                               |
+| Cache      | Redis 7.x                               |
 | Auth       | JWT · bcryptjs                          |
 | AI         | DeepSeek API (OpenAI SDK)               |
+| Logging    | Winston                                 |
+| Security   | Helmet · express-rate-limit             |
+| Testing    | Jest · Supertest                        |
 | Code Style | ESLint · Prettier                       |
 | Container  | Docker Compose (MySQL + Redis)          |
 
@@ -221,6 +254,12 @@ mysql -u root -p < sql/init.sql
 npm run dev
 ```
 
+#### Run Tests
+
+```bash
+npm test
+```
+
 ### 🔑 Default Account
 
 | Field    | Value                                         |
@@ -239,6 +278,9 @@ npm run dev
 - **User Content Priority**: User-provided options are fully preserved
 - **Connection Pool + Transactions**: Atomic operations for data consistency
 - **Code Quality**: ESLint + Prettier for consistent code style
+- **Structured Logging**: Winston logger with JSON format and rotation
+- **Security**: Helmet + layered rate limiting
+- **Testing**: Jest coverage for core controllers
 
 ---
 
