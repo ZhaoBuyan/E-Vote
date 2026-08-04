@@ -48,15 +48,37 @@ app.use((req, res, next) => {
 })
 
 // 安全头
-app.use(helmet())
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'", "'unsafe-inline'", 'cdn.jsdelivr.net', 'cdn.socket.io'],
+                styleSrc: ["'self'", "'unsafe-inline'", 'cdn.jsdelivr.net'],
+                imgSrc: ["'self'", 'data:', 'https:'],
+                connectSrc: [
+                    "'self'",
+                    'ws://localhost:3000',
+                    'wss://localhost:3000',
+                    'cdn.jsdelivr.net', // 新增
+                    'cdn.socket.io' // 新增
+                ],
+                fontSrc: ["'self'", 'cdn.jsdelivr.net'],
+                objectSrc: ["'none'"],
+                upgradeInsecureRequests: []
+            }
+        }
+    })
+)
 
 // 全局限流（所有请求）
 const globalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15分钟
-    limit: 100, // 每个IP最多100次请求
+    windowMs: 15 * 60 * 1000,
+    limit: 100,
     message: { code: 429, msg: '请求过于频繁，请稍后再试' },
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
+    validate: { trustProxy: false }
 })
 app.use(globalLimiter)
 
@@ -64,7 +86,8 @@ app.use(globalLimiter)
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 50,
-    message: { code: 429, msg: 'API 请求过于频繁，请稍后再试' }
+    message: { code: 429, msg: 'API 请求过于频繁，请稍后再试' },
+    validate: { trustProxy: false }
 })
 app.use('/api', apiLimiter)
 
@@ -73,12 +96,12 @@ const strictLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 10,
     message: { code: 429, msg: '操作过于频繁，请稍后再试' },
-    skipSuccessfulRequests: true
+    skipSuccessfulRequests: true,
+    validate: { trustProxy: false }
 })
 app.use('/api/auth/login', strictLimiter)
 app.use('/api/auth/register', strictLimiter)
 app.use('/api/ai/generate-poll', strictLimiter)
-
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 

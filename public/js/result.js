@@ -67,6 +67,50 @@ $(function () {
         }
         if (pollingTimer) clearInterval(pollingTimer)
     })
+    // ============================================================
+    // 导出 CSV
+    // ============================================================
+    $('#exportCsvBtn').on('click', function () {
+        const token = localStorage.getItem('token')
+        if (!token) {
+            alert('请先登录')
+            return
+        }
+
+        // 用 fetch 下载，携带 Authorization 头
+        fetch(API_BASE + '/votes/' + pollId + '/export', {
+            headers: {
+                Authorization: 'Bearer ' + token
+            }
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    return response.json().then((err) => {
+                        throw new Error(err.msg || '导出失败')
+                    })
+                }
+                // 从 Content-Disposition 获取文件名
+                const contentDisposition = response.headers.get('Content-Disposition')
+                let filename = '投票结果.csv'
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename=(.+)/)
+                    if (match) filename = match[1]
+                }
+                return response.blob().then((blob) => {
+                    const url = window.URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = filename
+                    document.body.appendChild(a)
+                    a.click()
+                    a.remove()
+                    window.URL.revokeObjectURL(url)
+                })
+            })
+            .catch((err) => {
+                alert(err.message)
+            })
+    })
 })
 
 // ============================================================

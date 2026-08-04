@@ -1,5 +1,7 @@
 const pool = require('../config/db')
-
+const createCsvWriter = require('csv-writer').createObjectCsvWriter
+const path = require('path')
+const fs = require('fs')
 async function checkVoted(req, res) {
     const { id: pollId } = req.params
     const userId = req.user.id
@@ -243,9 +245,85 @@ async function getResults(req, res) {
         })
     }
 }
+// 导出投票结果为 CSV
+async function exportResults(req, res) {
+    const { id: pollId } = req.params
+    const userId = req.user.id // 由 authMiddleware 注入
 
+    try {
+        // 1. 检查投票是否存在
+        const [polls] = await pool.execute('SELECT title FROM polls WHERE id = ?', [pollId])
+        if (polls.length === 0) {
+            return res.status(404).json({ code: 404, msg: '投票不存在' })
+        }
+
+        // 2. 获取各选项得票数
+        const [results] = await pool.execute(
+            `SELECT o.id, o.option_text, COUNT(v.id) as vote_count
+             FROM options o
+             LEFT JOIN votes v ON o.id = v.option_id
+             WHERE o.poll_id = ?
+             GROUP BY o.id, o.option_text
+             ORDER BY o.sort_order ASC`,
+            [pollId]
+        )
+
+        // 3. 获取总投票人数
+        const [totalResult] = await pool.execute(
+            'SELECT COUNT(DISTINCT user_id) as total_voters FROM votes WHERE poll_id = ?',
+            [pollId]
+        )
+        const totalVoters = totalResult[0].total_voters
+
+        // 4. 构建 CSV 数据
+        const data = results.map((opt) => ({
+            选项ID: opt.id,
+            选项文字: opt.option_text,
+            得票数: opt.vote_count,
+            '百分比(%)':
+                totalVoters > 0
+                    ? (Math.round((opt.vote_count / totalVoters) * 100 * 10) / 10).toFixed(1)
+                    : '0.0'
+        }))
+
+        // 5. 生成 CSV 文件
+        const fileName = `投票结果_${polls[0].title}_${new Date().toISOString().slice(0, 10)}.csv`
+        const tempDir = path.join(__dirname, '../temp')
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true })
+        }
+        const filePath = path.join(tempDir, fileName)
+
+        const csvWriter = createCsvWriter({
+            path: filePath,
+            header: [
+                { id: '选项ID', title: '选项ID' },
+                { id: '选项文字', title: '选项文字' },
+                { id: '得票数', title: '得票数' },
+                { id: '百分比(%)', title: '百分比(%)' }
+            ]
+        })
+
+        await csvWriter.writeRecords(data)
+
+        // 6. 发送文件
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+        res.setHeader('Content-Disposition', `attachment; filename=${encodeURIComponent(fileName)}`)
+        res.sendFile(filePath, (err) => {
+            fs.unlink(filePath, () => {})
+            if (err) {
+                console.error('发送CSV文件失败:', err.message)
+                res.status(500).json({ code: 500, msg: '导出失败' })
+            }
+        })
+    } catch (err) {
+        console.error('导出投票结果错误:', err)
+        res.status(500).json({ code: 500, msg: '服务器错误' })
+    }
+}
 module.exports = {
     checkVoted,
     submitVote,
-    getResults
+    getResults,
+    exportResults // 新增
 }
