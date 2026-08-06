@@ -1,9 +1,6 @@
 ---
-
-```markdown
+lang: zh-CN
 ---
-
-## lang: zh-CN
 
 # 贡献指南
 
@@ -512,5 +509,4 @@ Thanks for contributing! 🎉
 ```
 
 ---
-
 ```
