@@ -1,5 +1,12 @@
 // tests/voteController.test.js
+// 在文件顶部添加
+jest.mock('csv-writer', () => ({
+    createObjectCsvWriter: jest.fn().mockReturnValue({
+        writeRecords: jest.fn().mockResolvedValue(undefined)
+    })
+}))
 const voteController = require('../controllers/voteController')
+const fs = require('fs')
 
 // ===== 模拟 Redis =====
 jest.mock('../config/redis', () => ({
@@ -15,6 +22,13 @@ jest.mock('../config/db', () => ({
     getConnection: jest.fn(),
     execute: jest.fn(),
     query: jest.fn()
+}))
+
+// ===== 模拟 fs =====
+jest.mock('fs', () => ({
+    existsSync: jest.fn(),
+    mkdirSync: jest.fn(),
+    unlink: jest.fn((path, cb) => cb && cb(null))
 }))
 
 const pool = require('../config/db')
@@ -40,7 +54,9 @@ describe('voteController', () => {
         }
         res = {
             status: jest.fn().mockReturnThis(),
-            json: jest.fn()
+            json: jest.fn(),
+            setHeader: jest.fn(),
+            sendFile: jest.fn((path, cb) => cb && cb(null))
         }
         conn = {
             beginTransaction: jest.fn(),
@@ -200,6 +216,37 @@ describe('voteController', () => {
                 })
             )
         })
+
+        it('should broadcast vote update after successful submission', async () => {
+            req.params = { id: '1' }
+            req.body = { optionIds: [1] }
+            req.app = {
+                get: jest.fn().mockReturnValue({
+                    to: jest.fn().mockReturnValue({
+                        emit: jest.fn()
+                    })
+                })
+            }
+
+            const poll = { id: 1, type: 'single', status: 'active', max_choices: 0 }
+            conn.execute
+                .mockResolvedValueOnce([[poll]])
+                .mockResolvedValueOnce([[{ id: 1 }]])
+                .mockResolvedValueOnce([[]])
+                .mockResolvedValueOnce([{ insertId: 1 }])
+
+            pool.execute
+                .mockResolvedValueOnce([[{ id: 1, option_text: 'A', vote_count: 1 }]])
+                .mockResolvedValueOnce([[{ total_voters: 1 }]])
+
+            redisClient.del.mockResolvedValue(1)
+
+            await voteController.submitVote(req, res)
+
+            expect(conn.commit).toHaveBeenCalled()
+            expect(redisClient.del).toHaveBeenCalled()
+            expect(res.status).toHaveBeenCalledWith(201)
+        })
     })
 
     describe('getResults', () => {
@@ -267,6 +314,82 @@ describe('voteController', () => {
                             })
                         ])
                     })
+                })
+            )
+        })
+    })
+
+    // ===== exportResults 测试 =====
+    describe('exportResults', () => {
+        beforeEach(() => {
+            req.params = { id: '1' }
+            req.user = { id: 1 }
+            res.sendFile = jest.fn((path, cb) => cb && cb(null))
+            const csvWriter = require('csv-writer')
+            csvWriter.createObjectCsvWriter.mockReturnValue({
+                writeRecords: jest.fn().mockResolvedValue(undefined)
+            })
+        })
+
+        it('should return 404 if poll not found', async () => {
+            pool.execute.mockResolvedValueOnce([[]])
+            await voteController.exportResults(req, res)
+            expect(res.status).toHaveBeenCalledWith(404)
+            expect(res.json).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    code: 404,
+                    msg: '投票不存在'
+                })
+            )
+        })
+
+        it('should export CSV successfully', async () => {
+            const poll = { title: 'Test Poll' }
+            const options = [
+                { id: 1, option_text: 'Option A', vote_count: 5 },
+                { id: 2, option_text: 'Option B', vote_count: 3 }
+            ]
+            const total = [{ total_voters: 8 }]
+
+            pool.execute
+                .mockResolvedValueOnce([[poll]])
+                .mockResolvedValueOnce([options])
+                .mockResolvedValueOnce([total])
+
+            fs.existsSync.mockReturnValue(false)
+            fs.mkdirSync.mockImplementation(() => {})
+
+            await voteController.exportResults(req, res)
+
+            expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8')
+            // 修改：匹配 URL 编码后的文件名片段
+            expect(res.setHeader).toHaveBeenCalledWith(
+                'Content-Disposition',
+                expect.stringContaining('filename=%E6%8A%95') // “投”字的 URL 编码
+            )
+            expect(res.sendFile).toHaveBeenCalled()
+        })
+
+        it('should handle export error gracefully', async () => {
+            const poll = { title: 'Test Poll' }
+            const options = [{ id: 1, option_text: 'A', vote_count: 1 }]
+            const total = [{ total_voters: 1 }]
+
+            pool.execute
+                .mockResolvedValueOnce([[poll]])
+                .mockResolvedValueOnce([options])
+                .mockResolvedValueOnce([total])
+
+            res.sendFile = jest.fn((path, cb) => cb && cb(new Error('Send failed')))
+
+            await voteController.exportResults(req, res)
+
+            expect(res.status).toHaveBeenCalledWith(500)
+            // 修改：期望 '导出失败' 而不是 '服务器错误'
+            expect(res.json).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    code: 500,
+                    msg: '导出失败'
                 })
             )
         })
