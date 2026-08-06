@@ -46,3 +46,6 @@ sql/init.local.sql
 
 # 临时文件
 temp/
+
+# 测试覆盖率报告
+coverage/

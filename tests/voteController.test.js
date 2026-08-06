@@ -1,6 +1,16 @@
 // tests/voteController.test.js
 const voteController = require('../controllers/voteController')
 
+// ===== 模拟 Redis =====
+jest.mock('../config/redis', () => ({
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
+    on: jest.fn(),
+    connect: jest.fn()
+}))
+
+// ===== 模拟数据库 =====
 jest.mock('../config/db', () => ({
     getConnection: jest.fn(),
     execute: jest.fn(),
@@ -8,13 +18,26 @@ jest.mock('../config/db', () => ({
 }))
 
 const pool = require('../config/db')
+const redisClient = require('../config/redis')
 
 describe('voteController', () => {
     let req, res
     let conn
 
     beforeEach(() => {
-        req = { params: {}, body: {}, user: { id: 1 }, ip: '127.0.0.1' }
+        req = {
+            params: {},
+            body: {},
+            user: { id: 1 },
+            ip: '127.0.0.1',
+            app: {
+                get: jest.fn().mockReturnValue({
+                    to: jest.fn().mockReturnValue({
+                        emit: jest.fn()
+                    })
+                })
+            }
+        }
         res = {
             status: jest.fn().mockReturnThis(),
             json: jest.fn()
@@ -69,7 +92,7 @@ describe('voteController', () => {
         it('should return 400 if poll not active or not found', async () => {
             req.params = { id: '1' }
             req.body = { optionIds: [1] }
-            conn.execute.mockResolvedValueOnce([[]]) // no poll
+            conn.execute.mockResolvedValueOnce([[]])
             await voteController.submitVote(req, res)
             expect(conn.rollback).toHaveBeenCalled()
             expect(res.status).toHaveBeenCalledWith(400)
@@ -121,7 +144,7 @@ describe('voteController', () => {
             conn.execute.mockResolvedValueOnce([
                 [{ id: 1, type: 'single', status: 'active', max_choices: 0 }]
             ])
-            conn.execute.mockResolvedValueOnce([[]]) // no options found
+            conn.execute.mockResolvedValueOnce([[]])
             await voteController.submitVote(req, res)
             expect(conn.rollback).toHaveBeenCalled()
             expect(res.status).toHaveBeenCalledWith(400)
@@ -139,8 +162,8 @@ describe('voteController', () => {
             conn.execute.mockResolvedValueOnce([
                 [{ id: 1, type: 'single', status: 'active', max_choices: 0 }]
             ])
-            conn.execute.mockResolvedValueOnce([[{ id: 1 }]]) // options exist
-            conn.execute.mockResolvedValueOnce([[{ id: 1 }]]) // existing vote
+            conn.execute.mockResolvedValueOnce([[{ id: 1 }]])
+            conn.execute.mockResolvedValueOnce([[{ id: 1 }]])
             await voteController.submitVote(req, res)
             expect(conn.rollback).toHaveBeenCalled()
             expect(res.status).toHaveBeenCalledWith(400)
@@ -156,13 +179,19 @@ describe('voteController', () => {
             req.params = { id: '1' }
             req.body = { optionIds: [1, 2] }
             const poll = { id: 1, type: 'multi', status: 'active', max_choices: 3 }
-            conn.execute.mockResolvedValueOnce([[poll]])
-            conn.execute.mockResolvedValueOnce([[{ id: 1 }, { id: 2 }]]) // options
-            conn.execute.mockResolvedValueOnce([[]]) // no existing vote
-            conn.execute.mockResolvedValueOnce([{ insertId: 1 }])
-            conn.execute.mockResolvedValueOnce([{ insertId: 2 }])
+            conn.execute
+                .mockResolvedValueOnce([[poll]])
+                .mockResolvedValueOnce([[{ id: 1 }, { id: 2 }]])
+                .mockResolvedValueOnce([[]])
+                .mockResolvedValueOnce([{ insertId: 1 }])
+                .mockResolvedValueOnce([{ insertId: 2 }])
+
+            redisClient.del.mockResolvedValue(1)
+
             await voteController.submitVote(req, res)
+
             expect(conn.commit).toHaveBeenCalled()
+            expect(redisClient.del).toHaveBeenCalled()
             expect(res.status).toHaveBeenCalledWith(201)
             expect(res.json).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -176,6 +205,7 @@ describe('voteController', () => {
     describe('getResults', () => {
         it('should return 404 if poll not found', async () => {
             req.params = { id: '1' }
+            redisClient.get.mockResolvedValue(null)
             pool.execute.mockResolvedValueOnce([[]])
             await voteController.getResults(req, res)
             expect(res.status).toHaveBeenCalledWith(404)
@@ -187,13 +217,41 @@ describe('voteController', () => {
             )
         })
 
-        it('should return results with options', async () => {
+        it('should return cached data if Redis hit', async () => {
+            req.params = { id: '1' }
+            const cachedData = {
+                title: 'Cached Poll',
+                type: 'single',
+                maxChoices: 0,
+                totalVoters: 10,
+                options: [{ id: 1, text: 'A', count: 5, percentage: 50 }]
+            }
+            redisClient.get.mockResolvedValue(JSON.stringify(cachedData))
+
+            await voteController.getResults(req, res)
+
+            expect(res.json).toHaveBeenCalledWith({
+                code: 200,
+                data: cachedData
+            })
+            expect(pool.execute).not.toHaveBeenCalled()
+        })
+
+        it('should return results with options (cache miss)', async () => {
             req.params = { id: '1' }
             const poll = { title: 'Test', type: 'single', max_choices: 0 }
-            pool.execute.mockResolvedValueOnce([[poll]])
-            pool.execute.mockResolvedValueOnce([[{ id: 1, option_text: 'A', vote_count: 3 }]])
-            pool.execute.mockResolvedValueOnce([[{ total_voters: 3 }]])
+
+            redisClient.get.mockResolvedValue(null)
+            redisClient.set.mockResolvedValue('OK')
+
+            pool.execute
+                .mockResolvedValueOnce([[poll]])
+                .mockResolvedValueOnce([[{ id: 1, option_text: 'A', vote_count: 3 }]])
+                .mockResolvedValueOnce([[{ total_voters: 3 }]])
+
             await voteController.getResults(req, res)
+
+            expect(redisClient.set).toHaveBeenCalled()
             expect(res.json).toHaveBeenCalledWith(
                 expect.objectContaining({
                     code: 200,

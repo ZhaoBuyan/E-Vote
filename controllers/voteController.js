@@ -1,7 +1,10 @@
+// controllers/voteController.js
+const redisClient = require('../config/redis')
 const pool = require('../config/db')
 const createCsvWriter = require('csv-writer').createObjectCsvWriter
 const path = require('path')
 const fs = require('fs')
+
 async function checkVoted(req, res) {
     const { id: pollId } = req.params
     const userId = req.user.id
@@ -43,7 +46,6 @@ async function submitVote(req, res) {
     try {
         await conn.beginTransaction()
 
-        // 检查投票是否存在且有效
         const [polls] = await conn.execute(
             'SELECT id, type, status, max_choices FROM polls WHERE id = ? AND status = "active"',
             [pollId]
@@ -59,7 +61,6 @@ async function submitVote(req, res) {
 
         const poll = polls[0]
 
-        // 单选检查
         if (poll.type === 'single' && optionIds.length > 1) {
             await conn.rollback()
             return res.status(400).json({
@@ -68,7 +69,6 @@ async function submitVote(req, res) {
             })
         }
 
-        // 多选检查：是否超过最大可选数
         if (poll.type === 'multi' && poll.max_choices > 0 && optionIds.length > poll.max_choices) {
             await conn.rollback()
             return res.status(400).json({
@@ -77,7 +77,6 @@ async function submitVote(req, res) {
             })
         }
 
-        // 检查选项是否属于该投票
         const placeholders = optionIds.map(() => '?').join(',')
         const [options] = await conn.execute(
             `SELECT id FROM options WHERE poll_id = ? AND id IN (${placeholders})`,
@@ -92,7 +91,6 @@ async function submitVote(req, res) {
             })
         }
 
-        // 检查是否已投票
         const [existing] = await conn.execute(
             'SELECT id FROM votes WHERE poll_id = ? AND user_id = ?',
             [pollId, userId]
@@ -106,7 +104,6 @@ async function submitVote(req, res) {
             })
         }
 
-        // 插入投票记录
         for (const optionId of optionIds) {
             await conn.execute(
                 'INSERT INTO votes (poll_id, option_id, user_id, ip_address) VALUES (?, ?, ?, ?)',
@@ -117,48 +114,58 @@ async function submitVote(req, res) {
         await conn.commit()
 
         // ============================================================
-        // ✅ 新增：投票成功后，广播最新结果给所有订阅者
+        // 1. 广播 WebSocket 更新（独立 try-catch）
         // ============================================================
         try {
             const io = req.app.get('io')
+            if (io) {
+                const [results] = await pool.execute(
+                    `SELECT o.id, o.option_text, COUNT(v.id) as vote_count
+                     FROM options o
+                     LEFT JOIN votes v ON o.id = v.option_id
+                     WHERE o.poll_id = ?
+                     GROUP BY o.id, o.option_text
+                     ORDER BY o.sort_order ASC`,
+                    [pollId]
+                )
 
-            // 查询最新投票结果
-            const [results] = await pool.execute(
-                `SELECT o.id, o.option_text, COUNT(v.id) as vote_count
-                 FROM options o
-                 LEFT JOIN votes v ON o.id = v.option_id
-                 WHERE o.poll_id = ?
-                 GROUP BY o.id, o.option_text
-                 ORDER BY o.sort_order ASC`,
-                [pollId]
-            )
+                const [totalResult] = await pool.execute(
+                    'SELECT COUNT(DISTINCT user_id) as total_voters FROM votes WHERE poll_id = ?',
+                    [pollId]
+                )
 
-            const [totalResult] = await pool.execute(
-                'SELECT COUNT(DISTINCT user_id) as total_voters FROM votes WHERE poll_id = ?',
-                [pollId]
-            )
+                const totalVoters = totalResult[0].total_voters
 
-            const totalVoters = totalResult[0].total_voters
+                const optionsWithPercent = results.map((opt) => ({
+                    id: opt.id,
+                    text: opt.option_text,
+                    count: opt.vote_count,
+                    percentage:
+                        totalVoters > 0
+                            ? Math.round((opt.vote_count / totalVoters) * 100 * 10) / 10
+                            : 0
+                }))
 
-            // 计算百分比
-            const optionsWithPercent = results.map((opt) => ({
-                id: opt.id,
-                text: opt.option_text,
-                count: opt.vote_count,
-                percentage:
-                    totalVoters > 0 ? Math.round((opt.vote_count / totalVoters) * 100 * 10) / 10 : 0
-            }))
+                io.to(`poll-${pollId}`).emit('vote-update', {
+                    totalVoters: totalVoters,
+                    options: optionsWithPercent
+                })
 
-            // 广播到该投票的房间
-            io.to(`poll-${pollId}`).emit('vote-update', {
-                totalVoters: totalVoters,
-                options: optionsWithPercent
-            })
-
-            console.log(`📡 已广播投票更新: poll-${pollId}`)
+                console.log(`📡 已广播投票更新: poll-${pollId}`)
+            }
         } catch (broadcastErr) {
-            // 广播失败不影响投票主流程
-            console.warn('⚠️ 广播投票更新失败:', broadcastErr.message)
+            console.warn('⚠️ 广播失败:', broadcastErr.message)
+        }
+
+        // ============================================================
+        // 2. 清除 Redis 缓存（独立 try-catch）
+        // ============================================================
+        try {
+            const cacheKey = `poll:${pollId}:results`
+            await redisClient.del(cacheKey)
+            console.log(`🗑️ 已清除缓存: ${cacheKey}`)
+        } catch (cacheErr) {
+            console.warn('⚠️ 清除缓存失败:', cacheErr.message)
         }
 
         res.status(201).json({
@@ -183,9 +190,17 @@ async function submitVote(req, res) {
 
 async function getResults(req, res) {
     const { id: pollId } = req.params
+    const cacheKey = `poll:${pollId}:results`
 
     try {
-        // 获取投票基本信息
+        const cached = await redisClient.get(cacheKey)
+        if (cached) {
+            return res.json({
+                code: 200,
+                data: JSON.parse(cached)
+            })
+        }
+
         const [polls] = await pool.execute(
             'SELECT title, type, max_choices FROM polls WHERE id = ?',
             [pollId]
@@ -198,66 +213,6 @@ async function getResults(req, res) {
             })
         }
 
-        // 获取各选项得票数
-        const [results] = await pool.execute(
-            `SELECT o.id, o.option_text,
-                    COUNT(v.id) as vote_count
-             FROM options o
-             LEFT JOIN votes v ON o.id = v.option_id
-             WHERE o.poll_id = ?
-             GROUP BY o.id, o.option_text
-             ORDER BY o.sort_order ASC`,
-            [pollId]
-        )
-
-        // 获取总投票人数（去重）
-        const [totalResult] = await pool.execute(
-            'SELECT COUNT(DISTINCT user_id) as total_voters FROM votes WHERE poll_id = ?',
-            [pollId]
-        )
-
-        const totalVoters = totalResult[0].total_voters
-
-        // 计算百分比
-        const optionsWithPercent = results.map((opt) => ({
-            id: opt.id,
-            text: opt.option_text,
-            count: opt.vote_count,
-            percentage:
-                totalVoters > 0 ? Math.round((opt.vote_count / totalVoters) * 100 * 10) / 10 : 0
-        }))
-
-        res.json({
-            code: 200,
-            data: {
-                title: polls[0].title,
-                type: polls[0].type,
-                maxChoices: polls[0].max_choices || 0,
-                totalVoters: totalVoters,
-                options: optionsWithPercent
-            }
-        })
-    } catch (err) {
-        console.error('获取投票结果错误:', err)
-        res.status(500).json({
-            code: 500,
-            msg: '服务器错误'
-        })
-    }
-}
-// 导出投票结果为 CSV
-async function exportResults(req, res) {
-    const { id: pollId } = req.params
-    const userId = req.user.id // 由 authMiddleware 注入
-
-    try {
-        // 1. 检查投票是否存在
-        const [polls] = await pool.execute('SELECT title FROM polls WHERE id = ?', [pollId])
-        if (polls.length === 0) {
-            return res.status(404).json({ code: 404, msg: '投票不存在' })
-        }
-
-        // 2. 获取各选项得票数
         const [results] = await pool.execute(
             `SELECT o.id, o.option_text, COUNT(v.id) as vote_count
              FROM options o
@@ -268,14 +223,70 @@ async function exportResults(req, res) {
             [pollId]
         )
 
-        // 3. 获取总投票人数
+        const [totalResult] = await pool.execute(
+            'SELECT COUNT(DISTINCT user_id) as total_voters FROM votes WHERE poll_id = ?',
+            [pollId]
+        )
+
+        const totalVoters = totalResult[0].total_voters
+
+        const optionsWithPercent = results.map((opt) => ({
+            id: opt.id,
+            text: opt.option_text,
+            count: opt.vote_count,
+            percentage:
+                totalVoters > 0 ? Math.round((opt.vote_count / totalVoters) * 100 * 10) / 10 : 0
+        }))
+
+        const data = {
+            title: polls[0].title,
+            type: polls[0].type,
+            maxChoices: polls[0].max_choices || 0,
+            totalVoters: totalVoters,
+            options: optionsWithPercent
+        }
+
+        await redisClient.set(cacheKey, JSON.stringify(data), { EX: 10 })
+
+        res.json({
+            code: 200,
+            data: data
+        })
+    } catch (err) {
+        console.error('获取投票结果错误:', err)
+        res.status(500).json({
+            code: 500,
+            msg: '服务器错误'
+        })
+    }
+}
+
+// 导出投票结果为 CSV
+async function exportResults(req, res) {
+    const { id: pollId } = req.params
+
+    try {
+        const [polls] = await pool.execute('SELECT title FROM polls WHERE id = ?', [pollId])
+        if (polls.length === 0) {
+            return res.status(404).json({ code: 404, msg: '投票不存在' })
+        }
+
+        const [results] = await pool.execute(
+            `SELECT o.id, o.option_text, COUNT(v.id) as vote_count
+             FROM options o
+             LEFT JOIN votes v ON o.id = v.option_id
+             WHERE o.poll_id = ?
+             GROUP BY o.id, o.option_text
+             ORDER BY o.sort_order ASC`,
+            [pollId]
+        )
+
         const [totalResult] = await pool.execute(
             'SELECT COUNT(DISTINCT user_id) as total_voters FROM votes WHERE poll_id = ?',
             [pollId]
         )
         const totalVoters = totalResult[0].total_voters
 
-        // 4. 构建 CSV 数据
         const data = results.map((opt) => ({
             选项ID: opt.id,
             选项文字: opt.option_text,
@@ -286,7 +297,6 @@ async function exportResults(req, res) {
                     : '0.0'
         }))
 
-        // 5. 生成 CSV 文件
         const fileName = `投票结果_${polls[0].title}_${new Date().toISOString().slice(0, 10)}.csv`
         const tempDir = path.join(__dirname, '../temp')
         if (!fs.existsSync(tempDir)) {
@@ -306,7 +316,6 @@ async function exportResults(req, res) {
 
         await csvWriter.writeRecords(data)
 
-        // 6. 发送文件
         res.setHeader('Content-Type', 'text/csv; charset=utf-8')
         res.setHeader('Content-Disposition', `attachment; filename=${encodeURIComponent(fileName)}`)
         res.sendFile(filePath, (err) => {
@@ -321,9 +330,10 @@ async function exportResults(req, res) {
         res.status(500).json({ code: 500, msg: '服务器错误' })
     }
 }
+
 module.exports = {
     checkVoted,
     submitVote,
     getResults,
-    exportResults // 新增
+    exportResults
 }
