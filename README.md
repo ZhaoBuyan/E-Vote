@@ -1,6 +1,6 @@
 # E-Vote · AI 智能投票系统
 
-> **AI 生成 · 实时推送 · 防刷票 — 全栈实战项目**
+> **AI 生成 · 实时推送 · 防刷票 · 缓存加速 — 全栈实战项目**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-18.x-green.svg)](https://nodejs.org/)
@@ -27,6 +27,8 @@
 | 📝 **结构化日志**  | Winston 日志系统，JSON 格式输出，支持日志轮转                           |
 | 🔒 **安全加固**    | Helmet 安全头 + 分层限流（全局/API/敏感接口）                           |
 | 🧪 **单元测试**    | Jest 测试框架，覆盖核心控制器（覆盖率 74%+）                            |
+| 🗄️ **Redis 缓存**  | 投票结果缓存 10 秒，减轻数据库压力                                      |
+| 🔁 **CI/CD**       | GitHub Actions 自动运行测试，保证代码质量                               |
 
 ### 🛠️ 技术栈
 
@@ -45,46 +47,50 @@
 | 测试     | Jest · Supertest                        |
 | 代码规范 | ESLint · Prettier                       |
 | 容器化   | Docker Compose（MySQL + Redis）         |
+| CI/CD    | GitHub Actions                          |
 
 ### 📁 项目结构
 
-```
 e-vote/
-├── app.js                 # 应用入口（含 Socket.IO 初始化）
+├── app.js # 应用入口（含 Socket.IO 初始化）
 ├── config/
-│   ├── db.js              # 数据库连接池
-│   └── logger.js          # Winston 日志配置
+│ ├── db.js # 数据库连接池
+│ ├── logger.js # Winston 日志配置
+│ └── redis.js # Redis 连接配置
 ├── controllers/
-│   ├── authController.js  # 认证逻辑
-│   ├── pollController.js  # 投票 CRUD
-│   └── voteController.js  # 投票提交 + 结果统计
+│ ├── authController.js # 认证逻辑
+│ ├── pollController.js # 投票 CRUD
+│ └── voteController.js # 投票提交 + 结果统计（含 Redis 缓存）
 ├── middleware/
-│   ├── auth.js            # JWT 认证
-│   └── error-handler.js   # 全局错误处理
+│ ├── auth.js # JWT 认证
+│ └── error-handler.js # 全局错误处理
 ├── routes/
-│   ├── auth.js            # 认证路由
-│   ├── polls.js           # 投票路由
-│   ├── votes.js           # 投票记录路由
-│   └── ai.js              # AI 生成路由
+│ ├── auth.js # 认证路由
+│ ├── polls.js # 投票路由
+│ ├── votes.js # 投票记录路由
+│ └── ai.js # AI 生成路由
 ├── public/
-│   ├── index.html         # 投票列表
-│   ├── poll.html          # 投票详情
-│   ├── result.html        # 结果页（WebSocket 实时）
-│   ├── create-poll.html   # 创建投票（AI + 批量填充）
-│   └── js/                # 前端脚本
-├── tests/                 # 单元测试（Jest）
-│   ├── authController.test.js
-│   ├── pollController.test.js
-│   ├── voteController.test.js
-│   └── aiController.test.js
+│ ├── index.html # 投票列表
+│ ├── poll.html # 投票详情
+│ ├── result.html # 结果页（WebSocket 实时）
+│ ├── create-poll.html # 创建投票（AI + 批量填充）
+│ └── js/ # 前端脚本
+├── tests/ # 单元测试（Jest）
+│ ├── authController.test.js
+│ ├── pollController.test.js
+│ ├── voteController.test.js
+│ ├── aiController.test.js
+│ └── middleware/
+│ └── auth.test.js
 ├── sql/
-│   └── init.sql           # 数据库建表脚本
-├── logs/                  # 日志文件（自动生成）
-├── docker-compose.yml     # MySQL + Redis 容器配置
-├── .env.example           # 环境变量模板
-├── jest.config.js         # Jest 测试配置
+│ └── init.sql # 数据库建表脚本
+├── logs/ # 日志文件（自动生成）
+├── .github/workflows/
+│ └── ci.yml # GitHub Actions CI
+├── docker-compose.yml # MySQL + Redis 容器配置
+├── .env.example # 环境变量模板
+├── jest.config.js # Jest 测试配置
 └── README.md
-```
 
 ### 📦 安装与运行
 
@@ -93,6 +99,7 @@ e-vote/
 - Node.js 14+
 - MySQL 5.7+ / 8.0
 - Docker（可选，推荐）
+- Redis（Docker Compose 已包含）
 
 #### 方式一：Docker Compose（推荐）
 
@@ -111,13 +118,9 @@ docker-compose up -d
 # 4. 安装依赖并启动
 npm install
 npm run dev
-```
+访问 http://localhost:3000
 
-访问 `http://localhost:3000`
-
-#### 方式二：本地运行（手动安装 MySQL）
-
-```bash
+方式二：本地运行（手动安装 MySQL）
 # 1. 克隆项目
 git clone https://github.com/ZhaoBuyan/E-Vote.git
 cd E-Vote
@@ -134,100 +137,94 @@ mysql -u root -p < sql/init.sql
 
 # 5. 启动服务
 npm run dev
-```
-
-#### 运行测试
-
-```bash
+运行测试
 npm test
-```
+🔑 默认账号
+字段	值
+用户名	admin
+密码	你生成哈希时设置的明文密码
+密码哈希生成命令：node -e "console.log(require('bcryptjs').hashSync('你的密码', 10))"
 
-### 🔑 默认账号
+📡 API 接口
+方法	地址	说明	认证
+POST	/api/auth/register	用户注册	❌
+POST	/api/auth/login	用户登录	❌
+GET	/api/polls	获取投票列表	❌
+GET	/api/polls/:id	获取投票详情	❌
+POST	/api/polls	创建投票	✅
+DELETE	/api/polls/:id	删除投票	✅
+POST	/api/votes/:id	提交投票	✅
+GET	/api/votes/:id/results	获取投票结果	❌
+POST	/api/ai/generate-poll	AI 生成投票	✅
+💡 技术亮点
+WebSocket 实时推送：投票完成后，所有在线结果页即时更新，取代传统轮询
 
-| 字段   | 值                         |
-| ------ | -------------------------- |
-| 用户名 | `admin`                    |
-| 密码   | 你生成哈希时设置的明文密码 |
+Redis 缓存加速：投票结果缓存 10 秒，减轻数据库压力，提升高并发响应速度
 
-> 密码哈希生成命令：`node -e "console.log(require('bcryptjs').hashSync('你的密码', 10))"`
+自动降级：WebSocket 连接失败时自动切换 3 秒轮询，保证可用性
 
-### 📡 API 接口
+防刷票：MySQL 唯一索引 UNIQUE KEY (user_id, poll_id)，从数据库层面杜绝重复投票
 
-| 方法   | 地址                     | 说明         | 认证 |
-| ------ | ------------------------ | ------------ | :--: |
-| POST   | `/api/auth/register`     | 用户注册     |  ❌  |
-| POST   | `/api/auth/login`        | 用户登录     |  ❌  |
-| GET    | `/api/polls`             | 获取投票列表 |  ❌  |
-| GET    | `/api/polls/:id`         | 获取投票详情 |  ❌  |
-| POST   | `/api/polls`             | 创建投票     |  ✅  |
-| DELETE | `/api/polls/:id`         | 删除投票     |  ✅  |
-| POST   | `/api/votes/:id`         | 提交投票     |  ✅  |
-| GET    | `/api/votes/:id/results` | 获取投票结果 |  ❌  |
-| POST   | `/api/ai/generate-poll`  | AI 生成投票  |  ✅  |
+AI 场景识别：根据主题自动识别“评选/满意度/活动”场景，生成对应风格内容
 
-### 💡 技术亮点
+用户内容优先：批量填充时，用户提供的选项被完全保留，AI 仅优化标题/描述
 
-- **WebSocket 实时推送**：投票完成后，所有在线结果页即时更新，取代传统轮询
-- **自动降级**：WebSocket 连接失败时自动切换 3 秒轮询，保证可用性
-- **防刷票**：MySQL 唯一索引 `UNIQUE KEY (user_id, poll_id)`，从数据库层面杜绝重复投票
-- **AI 场景识别**：根据主题自动识别“评选/满意度/活动”场景，生成对应风格内容
-- **用户内容优先**：批量填充时，用户提供的选项被完全保留，AI 仅优化标题/描述
-- **连接池 + 事务**：投票创建与提交均使用数据库事务，保证数据一致性
-- **代码规范**：集成 ESLint + Prettier，统一代码风格
-- **结构化日志**：Winston 日志系统，JSON 格式输出，支持日志轮转和按级别分类
-- **安全加固**：Helmet 安全头 + 分层限流（全局/API/敏感接口）
-- **单元测试**：Jest 覆盖核心控制器，覆盖率 74%+
+连接池 + 事务：投票创建与提交均使用数据库事务，保证数据一致性
 
----
+代码规范：集成 ESLint + Prettier，统一代码风格
 
-## English
+结构化日志：Winston 日志系统，JSON 格式输出，支持日志轮转和按级别分类
 
-### ✨ Features
+安全加固：Helmet 安全头 + 分层限流（全局/API/敏感接口）
 
-| Feature                   | Description                                                      |
-| ------------------------- | ---------------------------------------------------------------- |
-| 🤖 **AI Generation**      | Enter a topic, AI auto-generates title, description, and options |
-| ⚡ **Real-time Push**     | WebSocket-based live updates, no manual refresh needed           |
-| 📊 **Visual Charts**      | ECharts pie/bar chart toggle with real-time data                 |
-| 🛡️ **Anti-spam**          | MySQL unique key prevents duplicate voting                       |
-| 📋 **Batch Fill**         | Paste title/desc/options line by line with smart parsing         |
-| 🎯 **Quick Templates**    | One-click templates for common scenarios                         |
-| 🔄 **Auto Fallback**      | WebSocket unavailable → auto switch to 3s polling                |
-| 🖱️ **Multi-choice Limit** | Set max selectable options for multi-choice polls                |
-| 📱 **Responsive**         | Bootstrap 5 for PC / tablet / mobile                             |
-| 📝 **Structured Logging** | Winston logger with JSON format and log rotation                 |
-| 🔒 **Security Hardening** | Helmet + layered rate limiting                                   |
-| 🧪 **Unit Testing**       | Jest test coverage for core controllers (74%+)                   |
+单元测试：Jest 覆盖核心控制器，覆盖率 74%+
 
-### 🛠️ Tech Stack
+CI/CD：GitHub Actions 自动运行测试，保障代码质量
 
-| Layer      | Technology                              |
-| ---------- | --------------------------------------- |
-| Frontend   | HTML5 · CSS3 · Bootstrap 5 · jQuery 3.x |
-| Charts     | ECharts 5.x                             |
-| Realtime   | Socket.IO                               |
-| Backend    | Node.js · Express 4.x                   |
-| Database   | MySQL 8.x                               |
-| Cache      | Redis 7.x                               |
-| Auth       | JWT · bcryptjs                          |
-| AI         | DeepSeek API (OpenAI SDK)               |
-| Logging    | Winston                                 |
-| Security   | Helmet · express-rate-limit             |
-| Testing    | Jest · Supertest                        |
-| Code Style | ESLint · Prettier                       |
-| Container  | Docker Compose (MySQL + Redis)          |
+English
+✨ Features
+Feature	Description
+🤖 AI Generation	Enter a topic, AI auto-generates title, description, and options
+⚡ Real-time Push	WebSocket-based live updates, no manual refresh needed
+📊 Visual Charts	ECharts pie/bar chart toggle with real-time data
+🛡️ Anti-spam	MySQL unique key prevents duplicate voting
+📋 Batch Fill	Paste title/desc/options line by line with smart parsing
+🎯 Quick Templates	One-click templates for common scenarios
+🔄 Auto Fallback	WebSocket unavailable → auto switch to 3s polling
+🖱️ Multi-choice Limit	Set max selectable options for multi-choice polls
+📱 Responsive	Bootstrap 5 for PC / tablet / mobile
+📝 Structured Logging	Winston logger with JSON format and rotation
+🔒 Security Hardening	Helmet + layered rate limiting
+🧪 Unit Testing	Jest test coverage for core controllers (74%+)
+🗄️ Redis Cache	Poll results cached for 10s to reduce DB load
+🔁 CI/CD	GitHub Actions auto-runs tests on every push
+🛠️ Tech Stack
+Layer	Technology
+Frontend	HTML5 · CSS3 · Bootstrap 5 · jQuery 3.x
+Charts	ECharts 5.x
+Realtime	Socket.IO
+Backend	Node.js · Express 4.x
+Database	MySQL 8.x
+Cache	Redis 7.x
+Auth	JWT · bcryptjs
+AI	DeepSeek API (OpenAI SDK)
+Logging	Winston
+Security	Helmet · express-rate-limit
+Testing	Jest · Supertest
+Code Style	ESLint · Prettier
+Container	Docker Compose (MySQL + Redis)
+CI/CD	GitHub Actions
+📦 Installation & Running
+Prerequisites
+Node.js 14+
 
-### 📦 Installation & Running
+MySQL 5.7+ / 8.0
 
-#### Prerequisites
+Docker (optional, recommended)
 
-- Node.js 14+
-- MySQL 5.7+ / 8.0
-- Docker (optional, recommended)
+Redis (included in Docker Compose)
 
-#### Option 1: Docker Compose (Recommended)
-
-```bash
+Option 1: Docker Compose (Recommended)
 git clone https://github.com/ZhaoBuyan/E-Vote.git
 cd E-Vote
 cp .env.example .env
@@ -235,13 +232,9 @@ cp .env.example .env
 docker-compose up -d
 npm install
 npm run dev
-```
+Visit http://localhost:3000
 
-Visit `http://localhost:3000`
-
-#### Option 2: Local (Manual MySQL)
-
-```bash
+Option 2: Local (Manual MySQL)
 git clone https://github.com/ZhaoBuyan/E-Vote.git
 cd E-Vote
 npm install
@@ -249,38 +242,41 @@ cp .env.example .env
 # Edit .env with your config
 mysql -u root -p < sql/init.sql
 npm run dev
-```
 
-#### Run Tests
-
-```bash
+Run Tests
 npm test
-```
+🔑 Default Account
+Field	Value
+Username	admin
+Password	The password you set when generating the hash
+Generate password hash: node -e "console.log(require('bcryptjs').hashSync('your_password', 10))"
 
-### 🔑 Default Account
+💡 Technical Highlights
+WebSocket Real-time: Instant updates after voting, replacing traditional polling
 
-| Field    | Value                                         |
-| -------- | --------------------------------------------- |
-| Username | `admin`                                       |
-| Password | The password you set when generating the hash |
+Redis Cache Acceleration: Poll results cached for 10s, reducing DB load and improving concurrency
 
-> Generate password hash: `node -e "console.log(require('bcryptjs').hashSync('your_password', 10))"`
+Auto Fallback: WebSocket failure → auto switch to 3s polling
 
-### 💡 Technical Highlights
+Anti-spam: MySQL UNIQUE KEY (user_id, poll_id) prevents duplicate votes
 
-- **WebSocket Real-time**: Instant updates after voting, replacing traditional polling
-- **Auto Fallback**: WebSocket failure → auto switch to 3s polling
-- **Anti-spam**: MySQL `UNIQUE KEY (user_id, poll_id)` prevents duplicate votes
-- **AI Scene Recognition**: Auto-detects "selection/satisfaction/event" scenarios
-- **User Content Priority**: User-provided options are fully preserved
-- **Connection Pool + Transactions**: Atomic operations for data consistency
-- **Code Quality**: ESLint + Prettier for consistent code style
-- **Structured Logging**: Winston logger with JSON format and rotation
-- **Security**: Helmet + layered rate limiting
-- **Testing**: Jest coverage for core controllers
+AI Scene Recognition: Auto-detects "selection/satisfaction/event" scenarios
 
+User Content Priority: User-provided options are fully preserved
+
+Connection Pool + Transactions: Atomic operations for data consistency
+
+Code Quality: ESLint + Prettier for consistent code style
+
+Structured Logging: Winston logger with JSON format and rotation
+
+Security: Helmet + layered rate limiting
+
+Testing: Jest coverage for core controllers (74%+)
+
+CI/CD: GitHub Actions auto-runs tests on every push
+
+📝 License
+MIT © ZhaoBuyan
 ---
-
-## 📝 License
-
-MIT © [ZhaoBuyan](https://github.com/ZhaoBuyan)
+```
