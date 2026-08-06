@@ -505,8 +505,3 @@ e-vote/
 If you have questions, open an Issue or reach out via email.
 
 Thanks for contributing! 🎉
-
-```
-
----
-```
