@@ -1,6 +1,9 @@
 ---
-lang: zh-CN
+
+```markdown
 ---
+
+## lang: zh-CN
 
 # 贡献指南
 
@@ -251,4 +254,263 @@ e-vote/
 
 如有问题，可在此仓库的 Issues 中提出，或通过邮箱联系维护者。
 
-## 感谢你的贡献！🎉
+感谢你的贡献！🎉
+
+---
+
+# Contributing Guide
+
+Thank you for your interest in the E-Vote project! We welcome contributions of all kinds — bug reports, feature requests, and code contributions.
+
+Please take a few minutes to read this guide to ensure smooth collaboration.
+
+---
+
+## 📋 Table of Contents
+
+- [Code of Conduct](#code-of-conduct)
+- [How to Report a Bug](#how-to-report-a-bug)
+- [How to Suggest a Feature](#how-to-suggest-a-feature)
+- [How to Submit Code](#how-to-submit-code)
+    - [Environment Setup](#environment-setup)
+    - [Branch Naming](#branch-naming)
+    - [Code Style](#code-style)
+    - [Commit Message Guidelines](#commit-message-guidelines)
+    - [Workflow](#workflow)
+- [Project Structure](#project-structure)
+- [FAQ](#faq)
+
+---
+
+## Code of Conduct
+
+This project follows the [Contributor Covenant](https://www.contributor-covenant.org/version/2/0/code_of_conduct/). By participating, you agree to abide by its terms.
+
+In short:
+
+- Use welcoming and inclusive language
+- Respect differing viewpoints and experiences
+- Gracefully accept constructive criticism
+- Focus on what's best for the project
+
+---
+
+## How to Report a Bug
+
+If you find a bug, first check the [Issues](https://github.com/ZhaoBuyan/E-Vote/issues) list to see if it has already been reported. If not, please [open a new Issue](https://github.com/ZhaoBuyan/E-Vote/issues/new) with the following information:
+
+- **Brief description**: One sentence summary
+- **Steps to reproduce**: How to trigger the issue
+- **Expected behavior**: What you expected to happen
+- **Actual behavior**: What actually happened
+- **Environment**: OS, Node.js version, browser version
+- **Screenshots or logs** (if available)
+
+---
+
+## How to Suggest a Feature
+
+If you have an idea, search the Issues first to see if it's already been suggested. When opening a new Issue, please include:
+
+- **Feature description**: What you want to add
+- **Use case**: What problem it solves
+- **Implementation ideas** (optional): If you already have a plan
+
+---
+
+## How to Submit Code
+
+### Environment Setup
+
+1. **Fork this repository** to your GitHub account
+2. **Clone your fork** locally:
+    ```bash
+    git clone https://github.com/ZhaoBuyan/E-Vote.git
+    cd E-Vote
+    ```
+3. **Install dependencies**:
+    ```bash
+    npm install
+    ```
+4. **Configure environment variables**:
+    ```bash
+    cp .env.example .env
+    # Edit .env with your database config
+    ```
+5. **Initialize the database**:
+    ```bash
+    mysql -u root -p < sql/init.sql
+    ```
+6. **Start the project**:
+    ```bash
+    npm run dev
+    ```
+
+### Branch Naming
+
+- `main` — Stable production branch
+- `feature/xxx` — New features (branch off `main`)
+- `fix/xxx` — Bug fixes (branch off `main`)
+- `docs/xxx` — Documentation updates
+
+Examples:
+
+```
+feature/add-vote-export
+fix/login-timeout-error
+docs/update-readme
+```
+
+### Code Style
+
+This project uses **ESLint** and **Prettier** to enforce code style. Please format your code before committing:
+
+```bash
+# Format all code
+npm run format   # or npx prettier --write .
+
+# Check ESLint issues
+npm run lint     # or npx eslint .
+```
+
+If scripts are not yet configured, you can use:
+
+```bash
+npx prettier --write .
+npx eslint --fix .
+```
+
+> It's recommended to install ESLint and Prettier extensions in VSCode with auto-formatting on save.
+
+### Commit Message Guidelines
+
+Commit messages should clearly describe the change. Use this format:
+
+```
+<type>: <short description>
+
+<detailed description (optional)>
+```
+
+**Types**:
+
+- `feat` — New feature
+- `fix` — Bug fix
+- `docs` — Documentation update
+- `style` — Code style changes (no logic change)
+- `refactor` — Code refactoring
+- `test` — Testing related
+- `chore` — Build tools, dependency updates, etc.
+
+**Example**:
+
+```
+feat: add CSV export for poll results
+
+- Add /api/votes/:id/export endpoint
+- Support CSV format export
+- Add "Export CSV" button on frontend
+```
+
+### Workflow
+
+1. **Sync your fork with upstream**:
+
+    ```bash
+    git remote add upstream https://github.com/ZhaoBuyan/E-Vote.git
+    git fetch upstream
+    git checkout main
+    git merge upstream/main
+    ```
+
+2. **Create a feature branch**:
+
+    ```bash
+    git checkout -b feature/your-feature-name
+    ```
+
+3. **Commit your changes** (follow commit guidelines)
+
+4. **Push to your fork**:
+
+    ```bash
+    git push origin feature/your-feature-name
+    ```
+
+5. **Create a Pull Request**:
+    - Go to the repository's Pull Requests page
+    - Click New Pull Request
+    - Select your branch
+    - Fill in the PR description with what you changed and how to test
+
+---
+
+## Project Structure
+
+```
+e-vote/
+├── app.js                 # Application entry
+├── config/                # Configuration files
+├── controllers/           # Business logic
+├── middleware/            # Auth, error handling, etc.
+├── routes/                # Route definitions
+├── public/                # Static frontend files
+│   ├── index.html         # Poll list
+│   ├── poll.html          # Poll detail
+│   ├── result.html        # Results page
+│   ├── create-poll.html   # Create poll
+│   └── js/                # Frontend JS
+├── sql/                   # Database scripts
+├── .eslintrc.json         # ESLint config
+├── .prettierrc            # Prettier config
+├── .env.example           # Environment template
+└── package.json
+```
+
+---
+
+## FAQ
+
+### 1. Database connection fails
+
+- Make sure MySQL is running
+- Check `.env` DB_HOST, DB_PORT, DB_USER, DB_PASSWORD
+- Make sure database `e_vote` exists: `CREATE DATABASE e_vote;`
+
+### 2. ESLint/Prettier errors
+
+- Make sure dependencies are installed: `npm install --save-dev eslint prettier`
+- Install ESLint and Prettier extensions in VSCode
+- Run `npx prettier --write .` to auto-fix formatting
+
+### 3. WebSocket connection fails
+
+- Make sure the server is running
+- Open browser dev tools and check Console for errors
+- WebSocket will auto-reconnect; you can also manually refresh
+
+### 4. I don't know where to start
+
+- Check Issues labeled `good-first-issue`
+- These are suitable for first-time contributors
+
+## After PR is merged
+
+1. Maintainers will review the PR
+2. If changes are requested, push to the same branch (the PR updates automatically)
+3. Once approved, the PR is merged into `main`
+4. Your name will be added to the contributors list
+
+---
+
+## Contact
+
+If you have questions, open an Issue or reach out via email.
+
+Thanks for contributing! 🎉
+
+```
+
+---
+
+```
