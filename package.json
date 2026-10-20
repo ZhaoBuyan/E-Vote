@@ -3,9 +3,13 @@
     "version": "1.0.0",
     "description": "在线投票系统 - 专业技术综合实践",
     "main": "app.js",
+    "engines": {
+        "node": ">=18.14.0"
+    },
     "scripts": {
         "start": "node app.js",
         "dev": "nodemon app.js",
+        "seed": "node scripts/seed.js",
         "test": "jest",
         "test:watch": "jest --watch"
     },

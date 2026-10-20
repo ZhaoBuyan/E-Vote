@@ -3,7 +3,7 @@
 > **AI 生成 · 实时推送 · 防刷票 · 缓存加速 — 全栈实战项目**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js](https://img.shields.io/badge/Node.js-18.x-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18.14%2B-green.svg)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-4.x-blue.svg)](https://expressjs.com/)
 [![MySQL](https://img.shields.io/badge/MySQL-8.x-orange.svg)](https://mysql.com/)
 
@@ -26,7 +26,7 @@
 | 📱 **响应式设计**  | Bootstrap 5 适配 PC / 平板 / 手机                                       |
 | 📝 **结构化日志**  | Winston 日志系统，JSON 格式输出，支持日志轮转                           |
 | 🔒 **安全加固**    | Helmet 安全头 + 分层限流（全局/API/敏感接口）                           |
-| 🧪 **单元测试**    | Jest 测试框架，覆盖核心控制器（覆盖率 74%+）                            |
+| 🧪 **单元测试**    | Jest 测试框架，覆盖核心控制器（覆盖率 85.71%）                            |
 | 🗄️ **Redis 缓存**  | 投票结果缓存 10 秒，减轻数据库压力                                      |
 | 🔁 **CI/CD**       | GitHub Actions 自动运行测试，保证代码质量                               |
 
@@ -84,7 +84,9 @@ e-vote/
 │   └── middleware/
 │       └── auth.test.js
 ├── sql/
-│   └── init.sql           # 数据库建表脚本
+│   └── init.sql           # 数据库建表脚本（含默认管理员）
+├── scripts/
+│   └── seed.js            # 生成/重置演示账号（npm run seed）
 ├── logs/                  # 日志文件（自动生成）
 ├── .github/workflows/
 │   └── ci.yml             # GitHub Actions CI
@@ -98,7 +100,7 @@ e-vote/
 
 #### 环境要求
 
-- Node.js 14+
+- Node.js 18.14+（推荐 22 LTS 及以上）
 - MySQL 5.7+ / 8.0
 - Docker（可选，推荐）
 - Redis（Docker Compose 已包含）
@@ -117,8 +119,13 @@ cp .env.example .env
 # 3. 启动 MySQL + Redis
 docker-compose up -d
 
-# 4. 安装依赖并启动
+# 4. 安装依赖
 npm install
+
+# 5. 初始化演示账号（等待 MySQL 容器状态变为 healthy 后执行）
+npm run seed
+
+# 6. 启动服务
 npm run dev
 ```
 
@@ -141,7 +148,10 @@ cp .env.example .env
 # 4. 初始化数据库
 mysql -u root -p < sql/init.sql
 
-# 5. 启动服务
+# 5. 初始化演示账号
+npm run seed
+
+# 6. 启动服务
 npm run dev
 ```
 
@@ -151,14 +161,24 @@ npm run dev
 npm test
 ```
 
+当前语句覆盖率 **85.71%**，CI 在 Node.js 18.x / 20.x 上自动执行。
+
 ### 🔑 默认账号
 
-| 字段   | 值                         |
-| ------ | -------------------------- |
-| 用户名 | `admin`                    |
-| 密码   | 你生成哈希时设置的明文密码 |
+首次运行请先生成演示账号（脚本幂等，可重复执行以重置密码）：
 
-> 密码哈希生成命令：`node -e "console.log(require('bcryptjs').hashSync('你的密码', 10))"`
+```bash
+npm run seed
+```
+
+| 账号类型 | 用户名  | 密码       | 角色    |
+| -------- | ------- | ---------- | ------- |
+| 管理员   | `admin` | `admin123` | `admin` |
+| 演示用户 | `demo`  | `demo123`  | `user`  |
+
+> `npm run seed` 会读取 `.env` 中的数据库配置，创建或重置上述账号；`sql/init.sql` 也内置了可用的 `admin` 账号，初始化数据库后即可直接登录。
+> 自定义密码：设置 `SEED_ADMIN_PASSWORD` / `SEED_DEMO_PASSWORD` 后再执行 `npm run seed`。
+> ⚠️ 上述账号仅供本地开发与演示使用；部署到公网前请修改密码或删除演示账号。
 
 ### 📡 API 接口
 
@@ -186,7 +206,7 @@ npm test
 - **代码规范**：集成 ESLint + Prettier，统一代码风格
 - **结构化日志**：Winston 日志系统，JSON 格式输出，支持日志轮转和按级别分类
 - **安全加固**：Helmet 安全头 + 分层限流（全局/API/敏感接口）
-- **单元测试**：Jest 覆盖核心控制器，覆盖率 74%+
+- **单元测试**：Jest 覆盖核心控制器，语句覆盖率 85.71%
 - **CI/CD**：GitHub Actions 自动运行测试，保障代码质量
 
 ---
@@ -208,7 +228,7 @@ npm test
 | 📱 **Responsive**         | Bootstrap 5 for PC / tablet / mobile                             |
 | 📝 **Structured Logging** | Winston logger with JSON format and rotation                     |
 | 🔒 **Security Hardening** | Helmet + layered rate limiting                                   |
-| 🧪 **Unit Testing**       | Jest test coverage for core controllers (74%+)                   |
+| 🧪 **Unit Testing**       | Jest test coverage for core controllers (85.71%)                   |
 | 🗄️ **Redis Cache**        | Poll results cached for 10s to reduce DB load                    |
 | 🔁 **CI/CD**              | GitHub Actions auto-runs tests on every push                     |
 
@@ -235,7 +255,7 @@ npm test
 
 #### Prerequisites
 
-- Node.js 14+
+- Node.js 18.14+ (22 LTS or newer recommended)
 - MySQL 5.7+ / 8.0
 - Docker (optional, recommended)
 - Redis (included in Docker Compose)
@@ -249,6 +269,8 @@ cp .env.example .env
 # Edit .env with your config
 docker-compose up -d
 npm install
+# Wait until MySQL reports healthy
+npm run seed
 npm run dev
 ```
 
@@ -263,6 +285,7 @@ npm install
 cp .env.example .env
 # Edit .env with your config
 mysql -u root -p < sql/init.sql
+npm run seed
 npm run dev
 ```
 
@@ -272,14 +295,24 @@ npm run dev
 npm test
 ```
 
-### 🔑 Default Account
+Current statement coverage is **85.71%**; CI runs it on Node.js 18.x / 20.x.
 
-| Field    | Value                                         |
-| -------- | --------------------------------------------- |
-| Username | `admin`                                       |
-| Password | The password you set when generating the hash |
+### 🔑 Default Accounts
 
-> Generate password hash: `node -e "console.log(require('bcryptjs').hashSync('your_password', 10))"`
+Run the seed script first (idempotent; re-running it resets the passwords below):
+
+```bash
+npm run seed
+```
+
+| Type     | Username | Password   | Role    |
+| -------- | -------- | ---------- | ------- |
+| Admin    | `admin`  | `admin123` | `admin` |
+| Demo     | `demo`   | `demo123`  | `user`  |
+
+> `npm run seed` reads the database settings from `.env` and creates or resets both accounts. `sql/init.sql` also ships with a working `admin` account, so you can log in right after initializing the database.
+> Custom passwords: set `SEED_ADMIN_PASSWORD` / `SEED_DEMO_PASSWORD` before running `npm run seed`.
+> ⚠️ These accounts are for local development and demos only. Change the passwords or remove the accounts before exposing the app publicly.
 
 ### 💡 Technical Highlights
 
@@ -293,7 +326,7 @@ npm test
 - **Code Quality**: ESLint + Prettier for consistent code style
 - **Structured Logging**: Winston logger with JSON format and rotation
 - **Security**: Helmet + layered rate limiting
-- **Testing**: Jest coverage for core controllers (74%+)
+- **Testing**: Jest coverage for core controllers (85.71%)
 - **CI/CD**: GitHub Actions auto-runs tests on every push
 
 ---

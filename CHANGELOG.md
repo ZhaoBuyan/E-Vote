@@ -15,6 +15,21 @@
 - ECharts 按需加载
 - TypeScript 迁移评估
 
+### 文档
+
+- README 覆盖率统一为 **85.71%**（`npm test` 实测语句覆盖率），修正原先 74%+ 的过时表述，与 1.2.0 记录保持一致
+- README 环境要求由 Node.js 14+ 修正为 **18.14+**（openai 4.x、Helmet 8 均要求 Node 18+，Jest 30 要求 18.14+），并在 `package.json` 增加 `engines.node`
+- README 默认账号改为可直接登录的固定演示账号，移除“你生成哈希时设置的明文密码”的占位说明
+
+### 新增
+
+- `npm run seed`：新增 `scripts/seed.js`，从 `.env` 读取数据库配置，幂等创建/重置演示账号 `admin / admin123`（管理员）和 `demo / demo123`（普通用户）
+- `sql/init.sql` 内置可用的 `admin` 密码哈希（原为 `$2a$10$REPLACE_WITH_YOUR_BCRYPT_HASH` 占位符，导致默认账号无法登录）
+
+### 修复
+
+- 修复全新数据库初始化后默认管理员无法登录的问题
+
 ---
 
 ## [1.2.0] - 2026-08-06

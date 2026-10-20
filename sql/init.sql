@@ -1,4 +1,6 @@
--- 密码哈希生成命令：node -e "console.log(require('bcryptjs').hashSync('你的密码', 10))"
+-- 默认管理员：admin / admin123（哈希由 bcryptjs 生成）
+-- 如需重置或新增演示账号，执行：npm run seed
+-- 自定义密码：node -e "console.log(require('bcryptjs').hashSync('你的密码', 10))"
 -- 创建数据库
 CREATE DATABASE IF NOT EXISTS e_vote
     DEFAULT CHARACTER SET utf8mb4
@@ -58,10 +60,9 @@ CREATE TABLE votes (
     INDEX idx_poll_option (poll_id, option_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='投票记录表';
 
--- 插入默认管理员（密码: admin123，需用bcrypt生成实际哈希）
--- 使用命令生成: node -e "console.log(require('bcryptjs').hashSync('admin123', 10))"
+-- 插入默认管理员（密码: admin123，哈希由 bcryptjs 生成）
 INSERT INTO users (username, password, real_name, role) VALUES
-('admin', '$2a$10$REPLACE_WITH_YOUR_BCRYPT_HASH', '系统管理员', 'admin');
+('admin', '$2a$10$OVNH3fmd5xzsoLWEHGAZY.rOzQRKRzNcaQrHQK/hr.l8Pt1KdD64.', '系统管理员', 'admin');
 
 -- 插入测试投票数据
 INSERT INTO polls (title, description, type, status, end_time, created_by) VALUES
