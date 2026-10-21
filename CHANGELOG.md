@@ -15,10 +15,15 @@
 - ECharts 按需加载
 - TypeScript 迁移评估
 
+### 安全
+
+- 将 Node.js 支持范围收紧至 **22.23.4+ / 24.22.1+**：Node 18/20 已 EOL，且不含 eMudhra 中间 CA 私钥事件的修复，旧运行时仍可能信任可被还原的证书链
+- CI 矩阵由 Node.js 18.x / 20.x 调整为 **22.x / 24.x**
+
 ### 文档
 
 - README 覆盖率统一为 **85.71%**（`npm test` 实测语句覆盖率），修正原先 74%+ 的过时表述，与 1.2.0 记录保持一致
-- README 环境要求由 Node.js 14+ 修正为 **18.14+**（openai 4.x、Helmet 8 均要求 Node 18+，Jest 30 要求 18.14+），并在 `package.json` 增加 `engines.node`
+- README 环境要求由 Node.js 14+ 收紧为 **22.23.4+ / 24.22.1+**（openai 4.x、Helmet 8 只要求 Node 18+，Jest 30 要求 18.14+；18/20 已 EOL，故按含 eMudhra CA 修复的安全版本设下限），并同步 `engines.node`
 - README 默认账号改为可直接登录的固定演示账号，移除“你生成哈希时设置的明文密码”的占位说明
 
 ### 新增

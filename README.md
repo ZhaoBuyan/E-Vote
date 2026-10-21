@@ -3,7 +3,7 @@
 > **AI 生成 · 实时推送 · 防刷票 · 缓存加速 — 全栈实战项目**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js](https://img.shields.io/badge/Node.js-18.14%2B-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-22.23.4%2B%20%2F%2024.22.1%2B-green.svg)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-4.x-blue.svg)](https://expressjs.com/)
 [![MySQL](https://img.shields.io/badge/MySQL-8.x-orange.svg)](https://mysql.com/)
 
@@ -100,10 +100,12 @@ e-vote/
 
 #### 环境要求
 
-- Node.js 18.14+（推荐 22 LTS 及以上）
+- Node.js 22.23.4+ 或 24.22.1+（推荐 24 LTS）
 - MySQL 5.7+ / 8.0
 - Docker（可选，推荐）
 - Redis（Docker Compose 已包含）
+
+> Node.js 18/20 已 EOL，且不含 2026-10 的 [eMudhra 中间 CA 修复](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases)；请使用上述已修复版本。
 
 #### 方式一：Docker Compose（推荐）
 
@@ -161,7 +163,7 @@ npm run dev
 npm test
 ```
 
-当前语句覆盖率 **85.71%**，CI 在 Node.js 18.x / 20.x 上自动执行。
+当前语句覆盖率 **85.71%**，CI 在 Node.js 22.x / 24.x 上自动执行。
 
 ### 🔑 默认账号
 
@@ -255,10 +257,12 @@ npm run seed
 
 #### Prerequisites
 
-- Node.js 18.14+ (22 LTS or newer recommended)
+- Node.js 22.23.4+ or 24.22.1+ (24 LTS recommended)
 - MySQL 5.7+ / 8.0
 - Docker (optional, recommended)
 - Redis (included in Docker Compose)
+
+> Node.js 18/20 are EOL and lack the October 2026 [eMudhra intermediate CA fix](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases); use one of the patched versions above.
 
 #### Option 1: Docker Compose (Recommended)
 
@@ -295,7 +299,7 @@ npm run dev
 npm test
 ```
 
-Current statement coverage is **85.71%**; CI runs it on Node.js 18.x / 20.x.
+Current statement coverage is **85.71%**; CI runs it on Node.js 22.x / 24.x.
 
 ### 🔑 Default Accounts
 
