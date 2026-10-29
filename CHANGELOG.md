@@ -18,6 +18,7 @@
 ### 变更
 
 - 投票记录拆分为 `vote_submissions`（一人一票）和 `vote_choices`（多选明细），新增 `sql/migrations/001_vote_submissions.sql` 迁移旧 `votes` 表
+- 迁移脚本会顺带补齐更早本地库缺失的 `polls.max_choices` 列
 - 参与人数改为统计提交记录，多选投票不再按行数重复计数
 
 ### 安全
@@ -53,6 +54,7 @@
 - README 覆盖率按重构后 `npm test` 实测更新为 **82.43%**
 - README 环境要求由 Node.js 14+ 收紧为 **22.23.4+ / 24.22.1+**（openai 4.x、Helmet 8 只要求 Node 18+，Jest 30 要求 18.14+；18/20 已 EOL，故按含 eMudhra CA 修复的安全版本设下限），并同步 `engines.node`
 - README 默认账号改为可直接登录的固定演示账号，移除“你生成哈希时设置的明文密码”的占位说明
+- 新增 `SECURITY.md`，记录生产部署最低要求与 `deepmerge` 开发依赖告警的接受理由
 
 ### 新增
 

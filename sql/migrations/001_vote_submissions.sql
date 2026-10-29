@@ -7,6 +7,23 @@
 -- 2. 旧唯一键保证每个用户每张投票只有一行，因此可以直接按 (poll_id, user_id) 聚合。
 -- 3. 该脚本只应执行一次；重复执行会因表已存在而失败。
 
+-- 兼容更早的本地库：补上 polls.max_choices（已存在时跳过）
+SET @has_max_choices := (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'polls'
+      AND COLUMN_NAME = 'max_choices'
+);
+SET @max_choices_ddl := IF(
+    @has_max_choices = 0,
+    'ALTER TABLE polls ADD COLUMN max_choices INT DEFAULT 0 COMMENT ''多选最大可选数，0表示不限制'' AFTER type',
+    'SELECT 1'
+);
+PREPARE migrate_max_choices FROM @max_choices_ddl;
+EXECUTE migrate_max_choices;
+DEALLOCATE PREPARE migrate_max_choices;
+
 CREATE TABLE vote_submissions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     poll_id INT NOT NULL,

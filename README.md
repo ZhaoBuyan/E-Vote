@@ -95,6 +95,7 @@ e-vote/
 ├── docker-compose.yml     # MySQL + Redis 容器配置
 ├── .env.example           # 环境变量模板
 ├── jest.config.js         # Jest 测试配置
+├── SECURITY.md            # 安全策略与已知依赖告警
 └── README.md
 ```
 
@@ -350,6 +351,10 @@ npm run seed
 - **CI/CD**: GitHub Actions auto-runs tests on every push
 
 ---
+
+## 🔐 安全 / Security
+
+安全策略与已知依赖告警见 [SECURITY.md](SECURITY.md)。 Security policy and known dependency advisories: [SECURITY.md](SECURITY.md).
 
 ## 📝 License
 
