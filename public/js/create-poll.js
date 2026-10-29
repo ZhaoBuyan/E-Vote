@@ -12,6 +12,36 @@ function escapeHtml(text) {
     return div.innerHTML
 }
 
+function escapeAttr(text) {
+    if (text === null || text === undefined) return ''
+    return String(text).replace(/[&<>"']/g, function (char) {
+        return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char]
+    })
+}
+
+function toLocalDateTimeInput(date) {
+    function pad(value) {
+        return String(value).padStart(2, '0')
+    }
+    return (
+        date.getFullYear() +
+        '-' +
+        pad(date.getMonth() + 1) +
+        '-' +
+        pad(date.getDate()) +
+        'T' +
+        pad(date.getHours()) +
+        ':' +
+        pad(date.getMinutes())
+    )
+}
+
 // ============================================================
 // 选项管理
 // ============================================================
@@ -22,7 +52,7 @@ function addOption(text) {
     var val = text || ''
     container.append(`
         <div class="input-group mb-2 option-item">
-            <input type="text" class="form-control" placeholder="选项 ${count}" value="${escapeHtml(val)}" required>
+            <input type="text" class="form-control" placeholder="选项 ${count}" value="${escapeAttr(val)}" required>
             <button class="btn btn-outline-danger" type="button" onclick="removeOption(this)">✕</button>
         </div>
     `)
@@ -457,7 +487,7 @@ $(function () {
 
     var defaultEnd = new Date()
     defaultEnd.setDate(defaultEnd.getDate() + 7)
-    $('#pollEndTime').val(defaultEnd.toISOString().slice(0, 16))
+    $('#pollEndTime').val(toLocalDateTimeInput(defaultEnd))
 
     $('#aiStatus').html('💡 输入主题后点击 "✨ AI 生成"，或点击下方模板').css('color', '#6c757d')
     $('#batchStatus').html('💡 粘贴内容后点击按钮填充').css('color', '#6c757d')

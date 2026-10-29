@@ -70,7 +70,7 @@ function renderPoll(data) {
             container.append(`
                 <div class="form-check mb-2">
                     <input class="form-check-input" type="${type}" name="voteOption" value="${opt.id}" id="opt_${opt.id}">
-                    <label class="form-check-label" for="opt_${opt.id}">${opt.option_text}</label>
+                    <label class="form-check-label" for="opt_${opt.id}">${escapeHtml(opt.option_text)}</label>
                 </div>
             `)
         })
@@ -82,9 +82,13 @@ function renderPoll(data) {
     $('#resultLink').attr('href', 'result.html?id=' + data.id)
     $('#viewResultBtn').attr('href', 'result.html?id=' + data.id)
 
-    // 如果投票已结束，禁用提交
-    if (data.status === 'closed') {
-        $('#submitBtn').prop('disabled', true).text('投票已结束')
+    // 如果投票已结束或未开始，禁用提交
+    const isExpired = data.end_time && new Date(data.end_time) < new Date()
+    if (data.status === 'closed' || isExpired || data.status === 'draft') {
+        const label =
+            data.status === 'draft' ? '投票未开始' : '投票已结束'
+        $('#submitBtn').prop('disabled', true).text(label)
+        $('#voteForm .form-check-input').prop('disabled', true)
     }
 }
 

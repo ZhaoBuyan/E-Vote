@@ -26,7 +26,7 @@
 | 📱 **响应式设计**  | Bootstrap 5 适配 PC / 平板 / 手机                                       |
 | 📝 **结构化日志**  | Winston 日志系统，JSON 格式输出，支持日志轮转                           |
 | 🔒 **安全加固**    | Helmet 安全头 + 分层限流（全局/API/敏感接口）                           |
-| 🧪 **单元测试**    | Jest 测试框架，覆盖核心控制器（覆盖率 85.71%）                            |
+| 🧪 **单元测试**    | Jest 测试框架，覆盖核心控制器（覆盖率 81.67%）                            |
 | 🗄️ **Redis 缓存**  | 投票结果缓存 10 秒，减轻数据库压力                                      |
 | 🔁 **CI/CD**       | GitHub Actions 自动运行测试，保证代码质量                               |
 
@@ -84,7 +84,9 @@ e-vote/
 │   └── middleware/
 │       └── auth.test.js
 ├── sql/
-│   └── init.sql           # 数据库建表脚本（含默认管理员）
+│   ├── init.sql           # 数据库建表脚本（含默认管理员）
+│   └── migrations/
+│       └── 001_vote_submissions.sql  # 旧 votes 表迁移脚本
 ├── scripts/
 │   └── seed.js            # 生成/重置演示账号（npm run seed）
 ├── logs/                  # 日志文件（自动生成）
@@ -106,6 +108,7 @@ e-vote/
 - Redis（Docker Compose 已包含）
 
 > Node.js 18/20 已 EOL，且不含 2026-10 的 [eMudhra 中间 CA 修复](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases)；请使用上述已修复版本。
+> 反向代理部署时设置 `TRUST_PROXY=1`；跨域前端通过 `CORS_ORIGIN` 配置白名单（默认只允许同源）。
 
 #### 方式一：Docker Compose（推荐）
 
@@ -157,13 +160,15 @@ npm run seed
 npm run dev
 ```
 
+> 已有旧版数据库（旧 `votes` 表）请先执行迁移：`mysql -u root -p e_vote < sql/migrations/001_vote_submissions.sql`；新库直接使用 `sql/init.sql`，不要重复执行迁移。
+
 #### 运行测试
 
 ```bash
 npm test
 ```
 
-当前语句覆盖率 **85.71%**，CI 在 Node.js 22.x / 24.x 上自动执行。
+当前语句覆盖率 **81.67%**，CI 在 Node.js 22.x / 24.x 上自动执行。
 
 ### 🔑 默认账号
 
@@ -184,31 +189,36 @@ npm run seed
 
 ### 📡 API 接口
 
-| 方法   | 地址                     | 说明         | 认证 |
-| ------ | ------------------------ | ------------ | :--: |
-| POST   | `/api/auth/register`     | 用户注册     |  ❌  |
-| POST   | `/api/auth/login`        | 用户登录     |  ❌  |
-| GET    | `/api/polls`             | 获取投票列表 |  ❌  |
-| GET    | `/api/polls/:id`         | 获取投票详情 |  ❌  |
-| POST   | `/api/polls`             | 创建投票     |  ✅  |
-| DELETE | `/api/polls/:id`         | 删除投票     |  ✅  |
-| POST   | `/api/votes/:id`         | 提交投票     |  ✅  |
-| GET    | `/api/votes/:id/results` | 获取投票结果 |  ❌  |
-| POST   | `/api/ai/generate-poll`  | AI 生成投票  |  ✅  |
+| 方法   | 地址                     | 说明             | 认证 |
+| ------ | ------------------------ | ---------------- | :--: |
+| POST   | `/api/auth/register`     | 用户注册         |  ❌  |
+| POST   | `/api/auth/login`        | 用户登录         |  ❌  |
+| GET    | `/api/auth/me`           | 获取当前用户信息 |  ✅  |
+| GET    | `/api/polls`             | 获取投票列表     |  ❌  |
+| GET    | `/api/polls/:id`         | 获取投票详情     |  ❌  |
+| GET    | `/api/polls/my/list`     | 获取我的投票     |  ✅  |
+| POST   | `/api/polls`             | 创建投票         |  ✅  |
+| PUT    | `/api/polls/:id`         | 更新投票         |  ✅  |
+| DELETE | `/api/polls/:id`         | 删除投票         |  ✅  |
+| GET    | `/api/votes/:id/check`   | 检查是否已投票   |  ✅  |
+| POST   | `/api/votes/:id`         | 提交投票         |  ✅  |
+| GET    | `/api/votes/:id/results` | 获取投票结果     |  ❌  |
+| GET    | `/api/votes/:id/export`  | 导出 CSV 结果    |  ✅  |
+| POST   | `/api/ai/generate-poll`  | AI 生成投票      |  ✅  |
 
 ### 💡 技术亮点
 
 - **WebSocket 实时推送**：投票完成后，所有在线结果页即时更新，取代传统轮询
-- **Redis 缓存加速**：投票结果缓存 10 秒，减轻数据库压力，提升高并发响应速度
+- **Redis 缓存加速**：投票结果缓存 10 秒，Redis 不可用时自动回源数据库，不影响结果页
 - **自动降级**：WebSocket 连接失败时自动切换 3 秒轮询，保证可用性
-- **防刷票**：MySQL 唯一索引 `UNIQUE KEY (user_id, poll_id)`，从数据库层面杜绝重复投票
+- **防刷票**：`vote_submissions` 的 `UNIQUE KEY (user_id, poll_id)` 配合事务与行锁，从数据库层面杜绝重复投票
 - **AI 场景识别**：根据主题自动识别“评选/满意度/活动”场景，生成对应风格内容
 - **用户内容优先**：批量填充时，用户提供的选项被完全保留，AI 仅优化标题/描述
 - **连接池 + 事务**：投票创建与提交均使用数据库事务，保证数据一致性
 - **代码规范**：集成 ESLint + Prettier，统一代码风格
 - **结构化日志**：Winston 日志系统，JSON 格式输出，支持日志轮转和按级别分类
 - **安全加固**：Helmet 安全头 + 分层限流（全局/API/敏感接口）
-- **单元测试**：Jest 覆盖核心控制器，语句覆盖率 85.71%
+- **单元测试**：Jest 覆盖核心控制器，语句覆盖率 81.67%
 - **CI/CD**：GitHub Actions 自动运行测试，保障代码质量
 
 ---
@@ -230,7 +240,7 @@ npm run seed
 | 📱 **Responsive**         | Bootstrap 5 for PC / tablet / mobile                             |
 | 📝 **Structured Logging** | Winston logger with JSON format and rotation                     |
 | 🔒 **Security Hardening** | Helmet + layered rate limiting                                   |
-| 🧪 **Unit Testing**       | Jest test coverage for core controllers (85.71%)                   |
+| 🧪 **Unit Testing**       | Jest test coverage for core controllers (81.67%)                   |
 | 🗄️ **Redis Cache**        | Poll results cached for 10s to reduce DB load                    |
 | 🔁 **CI/CD**              | GitHub Actions auto-runs tests on every push                     |
 
@@ -263,6 +273,7 @@ npm run seed
 - Redis (included in Docker Compose)
 
 > Node.js 18/20 are EOL and lack the October 2026 [eMudhra intermediate CA fix](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases); use one of the patched versions above.
+> Set `TRUST_PROXY=1` when behind a reverse proxy; configure `CORS_ORIGIN` for cross-origin frontends (same-origin only by default).
 
 #### Option 1: Docker Compose (Recommended)
 
@@ -293,13 +304,15 @@ npm run seed
 npm run dev
 ```
 
+> Upgrading an existing database with the old `votes` table? Run `mysql -u root -p e_vote < sql/migrations/001_vote_submissions.sql`; fresh installs only need `sql/init.sql`.
+
 #### Run Tests
 
 ```bash
 npm test
 ```
 
-Current statement coverage is **85.71%**; CI runs it on Node.js 22.x / 24.x.
+Current statement coverage is **81.67%**; CI runs it on Node.js 22.x / 24.x.
 
 ### 🔑 Default Accounts
 
@@ -321,16 +334,16 @@ npm run seed
 ### 💡 Technical Highlights
 
 - **WebSocket Real-time**: Instant updates after voting, replacing traditional polling
-- **Redis Cache Acceleration**: Poll results cached for 10s, reducing DB load and improving concurrency
+- **Redis Cache**: Poll results cached for 10s; falls back to MySQL when Redis is unavailable
 - **Auto Fallback**: WebSocket failure → auto switch to 3s polling
-- **Anti-spam**: MySQL `UNIQUE KEY (user_id, poll_id)` prevents duplicate votes
+- **Anti-spam**: `vote_submissions` `UNIQUE KEY (user_id, poll_id)` with transactions and row locks prevents duplicate votes
 - **AI Scene Recognition**: Auto-detects "selection/satisfaction/event" scenarios
 - **User Content Priority**: User-provided options are fully preserved
 - **Connection Pool + Transactions**: Atomic operations for data consistency
 - **Code Quality**: ESLint + Prettier for consistent code style
 - **Structured Logging**: Winston logger with JSON format and rotation
 - **Security**: Helmet + layered rate limiting
-- **Testing**: Jest coverage for core controllers (85.71%)
+- **Testing**: Jest coverage for core controllers (81.67%)
 - **CI/CD**: GitHub Actions auto-runs tests on every push
 
 ---

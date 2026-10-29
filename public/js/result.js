@@ -93,8 +93,17 @@ $(function () {
                 const contentDisposition = response.headers.get('Content-Disposition')
                 let filename = '投票结果.csv'
                 if (contentDisposition) {
-                    const match = contentDisposition.match(/filename=(.+)/)
-                    if (match) filename = match[1]
+                    const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
+                    if (utf8Match) {
+                        try {
+                            filename = decodeURIComponent(utf8Match[1])
+                        } catch (decodeErr) {
+                            filename = '投票结果.csv'
+                        }
+                    } else {
+                        const asciiMatch = contentDisposition.match(/filename="?([^";]+)"?/i)
+                        if (asciiMatch) filename = asciiMatch[1]
+                    }
                 }
                 return response.blob().then((blob) => {
                     const url = window.URL.createObjectURL(blob)
@@ -157,10 +166,10 @@ function connectSocket() {
     // ✅ 监听投票更新事件
     socket.on('vote-update', function (data) {
         console.log('📡 收到投票更新:', data)
-        currentData = {
+        currentData = Object.assign({}, currentData, {
             totalVoters: data.totalVoters,
             options: data.options
-        }
+        })
         // 更新页面
         renderResults(currentData)
         $('#liveTip').text('⚡ 实时推送已连接').css('color', '#28a745')
@@ -195,10 +204,7 @@ function loadResults() {
         method: 'GET',
         success: function (res) {
             if (res.code === 200) {
-                currentData = {
-                    totalVoters: res.data.totalVoters,
-                    options: res.data.options
-                }
+                currentData = res.data
                 renderResults(currentData)
             }
             isLoading = false
@@ -253,7 +259,7 @@ function renderChart(options, totalVoters) {
                 trigger: 'item',
                 formatter: function (params) {
                     return (
-                        params.name +
+                        escapeHtml(params.name) +
                         '<br/>票数：' +
                         params.value +
                         ' 票<br/>占比：' +
@@ -310,7 +316,7 @@ function renderChart(options, totalVoters) {
                         return o.text === p.name
                     })
                     return (
-                        p.name +
+                        escapeHtml(p.name) +
                         '<br/>票数：' +
                         p.value +
                         ' 票<br/>占比：' +

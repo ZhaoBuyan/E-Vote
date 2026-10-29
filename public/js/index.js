@@ -44,8 +44,8 @@ function renderPolls(list) {
             <div class="col-md-6 col-lg-4 mb-4">
                 <div class="card h-100 shadow-sm hover-shadow">
                     <div class="card-body">
-                        <h5 class="card-title text-truncate">${poll.title}</h5>
-                        <p class="card-text text-muted small">${poll.description || '暂无说明'}</p>
+                        <h5 class="card-title text-truncate">${escapeHtml(poll.title)}</h5>
+                        <p class="card-text text-muted small">${escapeHtml(poll.description || '暂无说明')}</p>
                         <div class="d-flex flex-wrap gap-2 mb-2">
                             ${getStatusBadge(poll.status)}
                             <span class="badge bg-secondary">${poll.type === 'single' ? '单选' : '多选'}</span>

@@ -8,12 +8,13 @@ services:
             MYSQL_DATABASE: e_vote
             MYSQL_USER: evote_user
             MYSQL_PASSWORD: evote_pass
+            TZ: Asia/Shanghai
         ports:
-            - '3306:3306'
+            - '127.0.0.1:3306:3306'
         volumes:
             - mysql_data:/var/lib/mysql
-            - ./sql:/docker-entrypoint-initdb.d
-        command: --default-authentication-plugin=mysql_native_password
+            - ./sql/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+        command: --default-authentication-plugin=mysql_native_password --default-time-zone=+08:00
         healthcheck:
             test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
             interval: 10s
@@ -25,7 +26,7 @@ services:
         container_name: e-vote-redis
         restart: always
         ports:
-            - '6379:6379'
+            - '127.0.0.1:6379:6379'
         volumes:
             - redis_data:/data
         command: redis-server --appendonly yes

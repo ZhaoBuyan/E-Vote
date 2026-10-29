@@ -45,20 +45,29 @@ CREATE TABLE options (
     INDEX idx_poll (poll_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='选项表';
 
--- 投票记录表
-CREATE TABLE votes (
+-- 投票提交表（一人一票）
+CREATE TABLE vote_submissions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     poll_id INT NOT NULL,
-    option_id INT NOT NULL,
     user_id INT NOT NULL,
     ip_address VARCHAR(45),
     voted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (poll_id) REFERENCES polls(id) ON DELETE CASCADE,
-    FOREIGN KEY (option_id) REFERENCES options(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE KEY uk_user_poll (user_id, poll_id),
-    INDEX idx_poll_option (poll_id, option_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='投票记录表';
+    INDEX idx_poll (poll_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='投票提交表';
+
+-- 投票选项明细表（多选时一个提交对应多行）
+CREATE TABLE vote_choices (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    submission_id INT NOT NULL,
+    option_id INT NOT NULL,
+    FOREIGN KEY (submission_id) REFERENCES vote_submissions(id) ON DELETE CASCADE,
+    FOREIGN KEY (option_id) REFERENCES options(id) ON DELETE CASCADE,
+    UNIQUE KEY uk_submission_option (submission_id, option_id),
+    INDEX idx_option (option_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='投票选项明细表';
 
 -- 插入默认管理员（密码: admin123，哈希由 bcryptjs 生成）
 INSERT INTO users (username, password, real_name, role) VALUES

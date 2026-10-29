@@ -122,14 +122,45 @@ function getMockPoll(topic, desc, existingOptions) {
 // 路由：AI 生成投票
 // ============================================================
 router.post('/generate-poll', authMiddleware, async (req, res) => {
-    const { topic, existingTitle, existingDesc, existingOptions } = req.body
+    const body = req.body || {}
+    const topic = typeof body.topic === 'string' ? body.topic.trim() : ''
+    const existingTitle = typeof body.existingTitle === 'string' ? body.existingTitle.trim() : ''
+    const existingDesc = typeof body.existingDesc === 'string' ? body.existingDesc.trim() : ''
+    const existingOptions = Array.isArray(body.existingOptions)
+        ? body.existingOptions
+              .filter((item) => typeof item === 'string')
+              .map((item) => item.trim())
+              .filter(Boolean)
+              .slice(0, 20)
+        : []
     const userId = req.user.id
 
-    const effectiveTopic = topic || existingTitle || ''
-    if (!effectiveTopic.trim()) {
+    const effectiveTopic = topic || existingTitle
+    if (!effectiveTopic) {
         return res.status(400).json({
             code: 400,
             msg: '请先输入投票主题或标题'
+        })
+    }
+
+    if (effectiveTopic.length > 200) {
+        return res.status(400).json({
+            code: 400,
+            msg: '主题或标题不能超过 200 字'
+        })
+    }
+
+    if (existingDesc.length > 2000) {
+        return res.status(400).json({
+            code: 400,
+            msg: '投票说明不能超过 2000 字'
+        })
+    }
+
+    if (existingOptions.some((option) => option.length > 200)) {
+        return res.status(400).json({
+            code: 400,
+            msg: '单个选项不能超过 200 字'
         })
     }
 
@@ -148,7 +179,7 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
             })
         }
     } catch (redisErr) {
-        logger.warn('⚠️ Redis 读取失败，跳过频率限制检查:', redisErr.message)
+        logger.warn(`⚠️ Redis 读取失败，跳过频率限制检查: ${redisErr.message}`)
     }
 
     logger.info('🔍 调用 DeepSeek API')
@@ -239,7 +270,10 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
             stream: false
         })
 
-        let content = completion.choices[0].message.content
+        let content = completion.choices[0]?.message?.content
+        if (typeof content !== 'string') {
+            throw new Error('AI 返回的数据格式异常')
+        }
         content = content
             .replace(/```json/g, '')
             .replace(/```/g, '')
@@ -249,25 +283,37 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
         try {
             result = JSON.parse(content)
         } catch (parseError) {
-            logger.error('❌ JSON 解析失败:', content)
+            logger.error(`❌ JSON 解析失败: ${content}`)
             throw new Error('AI 返回的数据格式异常')
         }
 
-        if (!result.title || !result.description) {
+        if (
+            !result ||
+            typeof result.title !== 'string' ||
+            typeof result.description !== 'string' ||
+            !result.title.trim() ||
+            !result.description.trim()
+        ) {
             throw new Error('生成的数据不完整')
         }
 
         // 选项处理：如果用户提供了选项，强制使用用户选项
-        var finalOptions = result.options || []
-        if (existingOptions && existingOptions.length > 0) {
-            finalOptions = existingOptions
-        }
+        const resultOptions = Array.isArray(result.options)
+            ? result.options
+                  .filter((item) => typeof item === 'string')
+                  .map((item) => item.trim())
+                  .filter(Boolean)
+            : []
+        let finalOptions = existingOptions.length > 0 ? existingOptions : resultOptions
         if (finalOptions.length < 2) {
             finalOptions = ['选项 A', '选项 B', '选项 C', '选项 D']
         }
         if (finalOptions.length > 10) {
             finalOptions = finalOptions.slice(0, 10)
         }
+
+        const title = result.title.trim().slice(0, 200)
+        const description = result.description.trim().slice(0, 2000)
 
         // ============================================================
         // 更新 Redis 计数器
@@ -283,7 +329,7 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
             }
             logger.info(`📊 Redis 计数更新: ${key} -> ${newCount}`)
         } catch (redisErr) {
-            logger.warn('⚠️ Redis 计数更新失败:', redisErr.message)
+            logger.warn(`⚠️ Redis 计数更新失败: ${redisErr.message}`)
         }
 
         logger.info('✅ DeepSeek API 调用成功')
@@ -291,13 +337,13 @@ router.post('/generate-poll', authMiddleware, async (req, res) => {
             code: 200,
             msg: '生成成功',
             data: {
-                title: result.title,
-                description: result.description,
+                title,
+                description,
                 options: finalOptions
             }
         })
     } catch (err) {
-        logger.warn('⚠️ API 调用失败，使用 Mock 回退:', err.message)
+        logger.warn(`⚠️ API 调用失败，使用 Mock 回退: ${err.message}`)
 
         const mockData = getMockPoll(effectiveTopic, existingDesc || '', existingOptions || [])
 

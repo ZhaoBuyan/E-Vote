@@ -44,6 +44,25 @@ describe('pollController', () => {
                 })
             )
         })
+
+        it('should clamp invalid pagination values', async () => {
+            req.query = { page: -1, pageSize: -5 }
+            pool.query.mockResolvedValueOnce([[{ total: 0 }]])
+            pool.query.mockResolvedValueOnce([[]])
+
+            await pollController.getPolls(req, res)
+
+            expect(pool.query).toHaveBeenLastCalledWith(
+                expect.stringContaining('LIMIT ? OFFSET ?'),
+                [1, 0]
+            )
+            expect(res.json).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    code: 200,
+                    data: expect.objectContaining({ page: 1, pageSize: 1 })
+                })
+            )
+        })
     })
 
     describe('getPollById', () => {
@@ -88,9 +107,16 @@ describe('pollController', () => {
             expect(res.json).toHaveBeenCalledWith(
                 expect.objectContaining({
                     code: 400,
-                    msg: '请填写标题并至少添加2个选项'
+                    msg: '请填写 1-200 字标题和 2-20 个非空选项'
                 })
             )
+        })
+
+        it('should reject non-array options instead of creating an empty poll', async () => {
+            req.body = { title: 'Test', options: {} }
+            await pollController.createPoll(req, res)
+            expect(res.status).toHaveBeenCalledWith(400)
+            expect(pool.getConnection).not.toHaveBeenCalled()
         })
 
         it('should create poll successfully', async () => {
@@ -145,6 +171,17 @@ describe('pollController', () => {
         })
     })
     describe('updatePoll', () => {
+        const existing = {
+            id: 1,
+            title: 'Old Poll',
+            description: 'Old Description',
+            type: 'single',
+            status: 'active',
+            end_time: null,
+            is_anonymous: false,
+            max_choices: 0
+        }
+
         it('should return 400 if status is invalid', async () => {
             req.params = { id: '1' }
             req.user = { id: 1, role: 'user' }
@@ -154,6 +191,8 @@ describe('pollController', () => {
                 type: 'single',
                 status: 'invalid_status' // 非法状态
             }
+
+            pool.query.mockResolvedValueOnce([[existing]])
 
             await pollController.updatePoll(req, res)
 
@@ -176,7 +215,7 @@ describe('pollController', () => {
                 status: 'active'
             }
 
-            pool.query.mockResolvedValueOnce([{ affectedRows: 0 }])
+            pool.query.mockResolvedValueOnce([[]])
 
             await pollController.updatePoll(req, res)
 
@@ -202,6 +241,7 @@ describe('pollController', () => {
                 maxChoices: 0
             }
 
+            pool.query.mockResolvedValueOnce([[existing]])
             pool.query.mockResolvedValueOnce([{ affectedRows: 1 }])
 
             await pollController.updatePoll(req, res)
@@ -225,6 +265,7 @@ describe('pollController', () => {
                 maxChoices: 3
             }
 
+            pool.query.mockResolvedValueOnce([[existing]])
             pool.query.mockResolvedValueOnce([{ affectedRows: 1 }])
 
             await pollController.updatePoll(req, res)
@@ -235,6 +276,34 @@ describe('pollController', () => {
                     msg: '投票更新成功'
                 })
             )
+        })
+
+        it('should keep omitted fields instead of wiping them', async () => {
+            req.params = { id: '1' }
+            req.user = { id: 1, role: 'user' }
+            req.body = { status: 'closed' }
+
+            const current = {
+                id: 1,
+                title: 'Keep Title',
+                description: 'Keep Description',
+                type: 'multi',
+                status: 'active',
+                end_time: null,
+                is_anonymous: false,
+                max_choices: 2
+            }
+            pool.query.mockResolvedValueOnce([[current]])
+            pool.query.mockResolvedValueOnce([{ affectedRows: 1 }])
+
+            await pollController.updatePoll(req, res)
+
+            const updateParams = pool.query.mock.calls[1][1]
+            expect(updateParams[0]).toBe('Keep Title')
+            expect(updateParams[1]).toBe('Keep Description')
+            expect(updateParams[2]).toBe('multi')
+            expect(updateParams[3]).toBe('closed')
+            expect(updateParams[6]).toBe(2)
         })
     })
     describe('getMyPolls', () => {
@@ -370,13 +439,28 @@ describe('pollController', () => {
                 maxChoices: -1 // 负数
             }
 
+            pool.query.mockResolvedValueOnce([
+                [
+                    {
+                        id: 1,
+                        title: 'Old',
+                        description: 'Old',
+                        type: 'multi',
+                        status: 'active',
+                        end_time: null,
+                        is_anonymous: false,
+                        max_choices: 0
+                    }
+                ]
+            ])
+
             await pollController.updatePoll(req, res)
 
             expect(res.status).toHaveBeenCalledWith(400)
             expect(res.json).toHaveBeenCalledWith(
                 expect.objectContaining({
                     code: 400,
-                    msg: 'maxChoices 不能为负数'
+                    msg: 'maxChoices 必须是 0-100 的整数'
                 })
             )
         })

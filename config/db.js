@@ -21,7 +21,7 @@ pool.getConnection()
         conn.release()
     })
     .catch((err) => {
-        logger.error('❌ 数据库连接失败:', err.message)
+        logger.error(`❌ 数据库连接失败: ${err.message}`)
     })
 
 module.exports = pool

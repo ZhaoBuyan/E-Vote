@@ -43,7 +43,7 @@ function renderList(list) {
     list.forEach(function (poll) {
         html += `
             <tr>
-                <td><a href="poll.html?id=${poll.id}" class="text-decoration-none">${poll.title}</a></td>
+                <td><a href="poll.html?id=${poll.id}" class="text-decoration-none">${escapeHtml(poll.title)}</a></td>
                 <td>${poll.type === 'single' ? '单选' : '多选'}</td>
                 <td>${getStatusBadge(poll.status)}</td>
                 <td>${poll.vote_count || 0}</td>

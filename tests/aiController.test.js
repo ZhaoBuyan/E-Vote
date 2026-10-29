@@ -77,6 +77,12 @@ describe('aiController', () => {
         expect(res.body).toMatchObject({ code: 400, msg: '请先输入投票主题或标题' })
     })
 
+    it('should return 400 for a non-string topic without crashing', async () => {
+        const res = await request(app).post('/api/ai/generate-poll').send({ topic: {} })
+        expect(res.status).toBe(400)
+        expect(res.body).toMatchObject({ code: 400 })
+    })
+
     it('should return 429 if rate limited', async () => {
         redisClient.get.mockResolvedValue('10')
         const res = await request(app).post('/api/ai/generate-poll').send({ topic: 'test' })

@@ -100,7 +100,7 @@ describe('voteController', () => {
             expect(res.json).toHaveBeenCalledWith(
                 expect.objectContaining({
                     code: 400,
-                    msg: '请至少选择一个选项'
+                    msg: '请至少选择一个有效选项'
                 })
             )
         })
@@ -115,7 +115,7 @@ describe('voteController', () => {
             expect(res.json).toHaveBeenCalledWith(
                 expect.objectContaining({
                     code: 400,
-                    msg: '投票不存在或已关闭'
+                    msg: '投票不存在或已结束'
                 })
             )
         })
@@ -208,6 +208,19 @@ describe('voteController', () => {
 
             expect(conn.commit).toHaveBeenCalled()
             expect(redisClient.del).toHaveBeenCalled()
+            expect(conn.execute).toHaveBeenCalledWith(
+                'INSERT INTO vote_submissions (poll_id, user_id, ip_address) VALUES (?, ?, ?)',
+                ['1', 1, '127.0.0.1']
+            )
+            expect(conn.execute).toHaveBeenCalledWith(
+                'INSERT INTO vote_choices (submission_id, option_id) VALUES (?, ?)',
+                [1, 1]
+            )
+            expect(conn.execute).toHaveBeenCalledWith(
+                'INSERT INTO vote_choices (submission_id, option_id) VALUES (?, ?)',
+                [1, 2]
+            )
+            expect(conn.execute.mock.calls[0][0]).toContain('end_time > NOW()')
             expect(res.status).toHaveBeenCalledWith(201)
             expect(res.json).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -282,6 +295,27 @@ describe('voteController', () => {
                 data: cachedData
             })
             expect(pool.execute).not.toHaveBeenCalled()
+        })
+
+        it('should fall back to the database if Redis read fails', async () => {
+            req.params = { id: '1' }
+            redisClient.get.mockRejectedValue(new Error('redis down'))
+            redisClient.set.mockResolvedValue('OK')
+
+            pool.execute
+                .mockResolvedValueOnce([[{ title: 'Test', type: 'single', max_choices: 0 }]])
+                .mockResolvedValueOnce([[{ id: 1, option_text: 'A', vote_count: 1 }]])
+                .mockResolvedValueOnce([[{ total_voters: 1 }]])
+
+            await voteController.getResults(req, res)
+
+            expect(res.status).not.toHaveBeenCalledWith(500)
+            expect(res.json).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    code: 200,
+                    data: expect.objectContaining({ title: 'Test', totalVoters: 1 })
+                })
+            )
         })
 
         it('should return results with options (cache miss)', async () => {
@@ -365,9 +399,14 @@ describe('voteController', () => {
             // 修改：匹配 URL 编码后的文件名片段
             expect(res.setHeader).toHaveBeenCalledWith(
                 'Content-Disposition',
-                expect.stringContaining('filename=%E6%8A%95') // “投”字的 URL 编码
+                expect.stringContaining("filename*=UTF-8''%E6%8A%95") // “投”字的 URL 编码
             )
             expect(res.sendFile).toHaveBeenCalled()
+
+            const csvWriter = require('csv-writer')
+            const writerConfig = csvWriter.createObjectCsvWriter.mock.calls[0][0]
+            expect(writerConfig.path).toMatch(/poll-1-[0-9a-f-]+\.csv$/)
+            expect(writerConfig.path).not.toContain('Test Poll')
         })
 
         it('should handle export error gracefully', async () => {

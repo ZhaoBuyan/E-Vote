@@ -3,7 +3,7 @@ $(function () {
     $('#loginForm').on('submit', function (e) {
         e.preventDefault()
         const username = $('#username').val().trim()
-        const password = $('#password').val().trim()
+        const password = $('#password').val()
         const $error = $('#errorMsg')
 
         if (!username || !password) {

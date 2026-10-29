@@ -8,7 +8,7 @@ const {
     deletePoll,
     getMyPolls
 } = require('../controllers/pollController')
-const { authMiddleware, adminMiddleware } = require('../middleware/auth')
+const { authMiddleware } = require('../middleware/auth')
 
 // 公开路由
 router.get('/', getPolls)

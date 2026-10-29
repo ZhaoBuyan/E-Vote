@@ -24,6 +24,19 @@ $.ajaxSetup({
 })
 
 // ============ 工具函数 ============
+function escapeHtml(text) {
+    if (text === null || text === undefined) return ''
+    return String(text).replace(/[&<>"']/g, function (char) {
+        return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char]
+    })
+}
+
 function getQueryParam(name) {
     const params = new URLSearchParams(window.location.search)
     return params.get(name)
@@ -83,7 +96,11 @@ function updateNav() {
         $('#logoutNav').show()
         $('#userInfo')
             .show()
-            .html('<span class="text-light">' + (user.realName || user.username) + '</span>')
+            .html(
+                '<span class="text-light">' +
+                    escapeHtml(user.realName || user.username) +
+                    '</span>'
+            )
         $('#myPollsNav').show()
         $('#createNav').show()
         $('#myPollsBtn').show()

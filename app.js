@@ -21,6 +21,26 @@ const { errorHandler } = require('./middleware/error-handler')
 
 const app = express()
 const PORT = process.env.PORT || 3000
+const corsOrigin = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',')
+          .map((origin) => origin.trim())
+          .filter(Boolean)
+    : false
+
+// 只有显式配置 TRUST_PROXY 时才信任代理头，避免 X-Forwarded-For 绕过限流
+if (process.env.TRUST_PROXY) {
+    const rawTrustProxy = process.env.TRUST_PROXY
+    if (rawTrustProxy === 'true') {
+        app.set('trust proxy', true)
+    } else if (rawTrustProxy === 'false') {
+        app.set('trust proxy', false)
+    } else {
+        app.set(
+            'trust proxy',
+            /^\d+$/.test(rawTrustProxy) ? Number(rawTrustProxy) : rawTrustProxy
+        )
+    }
+}
 
 // 创建 HTTP 服务器（用于 Socket.IO）
 const server = http.createServer(app)
@@ -28,7 +48,7 @@ const server = http.createServer(app)
 // 初始化 Socket.IO
 const io = new Server(server, {
     cors: {
-        origin: '*',
+        origin: corsOrigin,
         methods: ['GET', 'POST']
     }
 })
@@ -39,7 +59,7 @@ app.set('io', io)
 // ============================================================
 // 中间件
 // ============================================================
-app.use(cors())
+app.use(cors({ origin: corsOrigin }))
 
 // 请求日志中间件（记录每个请求）
 app.use((req, res, next) => {
@@ -71,14 +91,16 @@ app.use(
     })
 )
 
-// 全局限流（所有请求）
+// 静态文件放在限流之前，避免页面加载 CSS/JS 就消耗请求配额
+app.use(express.static(path.join(__dirname, 'public')))
+
+// 全局限流（所有动态请求）
 const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 100,
     message: { code: 429, msg: '请求过于频繁，请稍后再试' },
     standardHeaders: true,
-    legacyHeaders: false,
-    validate: { trustProxy: false }
+    legacyHeaders: false
 })
 app.use(globalLimiter)
 
@@ -86,8 +108,7 @@ app.use(globalLimiter)
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 50,
-    message: { code: 429, msg: 'API 请求过于频繁，请稍后再试' },
-    validate: { trustProxy: false }
+    message: { code: 429, msg: 'API 请求过于频繁，请稍后再试' }
 })
 app.use('/api', apiLimiter)
 
@@ -96,18 +117,13 @@ const strictLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 10,
     message: { code: 429, msg: '操作过于频繁，请稍后再试' },
-    skipSuccessfulRequests: true,
-    validate: { trustProxy: false }
+    skipSuccessfulRequests: true
 })
 app.use('/api/auth/login', strictLimiter)
 app.use('/api/auth/register', strictLimiter)
 app.use('/api/ai/generate-poll', strictLimiter)
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
-
-// 静态文件
-app.use(express.static(path.join(__dirname, 'public')))
-app.set('trust proxy', true)
 
 // API路由
 app.use('/api', routes)
@@ -139,7 +155,6 @@ io.on('connection', (socket) => {
 // 启动服务器（使用 server 而不是 app）
 server.listen(PORT, () => {
     logger.info(`🚀 E-Vote 服务已启动: http://localhost:${PORT}`)
-    logger.info(`📊 默认管理员: admin / admin123`)
 })
 
 module.exports = { app, server, io }

@@ -3,7 +3,10 @@ const jwt = require('jsonwebtoken')
 const pool = require('../config/db')
 
 async function register(req, res) {
-    const { username, password, realName } = req.body
+    const body = req.body || {}
+    const username = typeof body.username === 'string' ? body.username.trim() : ''
+    const password = typeof body.password === 'string' ? body.password : ''
+    const realName = typeof body.realName === 'string' ? body.realName.trim() : ''
 
     if (!username || !password || !realName) {
         return res.status(400).json({
@@ -19,10 +22,24 @@ async function register(req, res) {
         })
     }
 
+    if (realName.length > 50) {
+        return res.status(400).json({
+            code: 400,
+            msg: '真实姓名不能超过50个字符'
+        })
+    }
+
     if (password.length < 6) {
         return res.status(400).json({
             code: 400,
             msg: '密码长度不能少于6个字符'
+        })
+    }
+
+    if (Buffer.byteLength(password, 'utf8') > 72) {
+        return res.status(400).json({
+            code: 400,
+            msg: '密码不能超过72字节'
         })
     }
 
@@ -51,6 +68,12 @@ async function register(req, res) {
             }
         })
     } catch (err) {
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({
+                code: 400,
+                msg: '用户名已存在'
+            })
+        }
         console.error('注册错误:', err)
         res.status(500).json({
             code: 500,
@@ -60,7 +83,9 @@ async function register(req, res) {
 }
 
 async function login(req, res) {
-    const { username, password } = req.body
+    const body = req.body || {}
+    const username = typeof body.username === 'string' ? body.username.trim() : ''
+    const password = typeof body.password === 'string' ? body.password : ''
 
     if (!username || !password) {
         return res.status(400).json({

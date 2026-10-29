@@ -1,6 +1,9 @@
 const pool = require('../config/db')
 const schedule = require('node-schedule')
 
+const VALID_TYPES = ['single', 'multi']
+const VALID_STATUSES = ['draft', 'active', 'closed']
+
 // 定时任务：每天凌晨2点检查并关闭过期投票
 schedule.scheduleJob('0 2 * * *', async function () {
     try {
@@ -15,11 +18,57 @@ schedule.scheduleJob('0 2 * * *', async function () {
     }
 })
 
+function normalizeTitle(value) {
+    if (typeof value !== 'string') return null
+    const title = value.trim()
+    if (!title || title.length > 200) return null
+    return title
+}
+
+function normalizeDescription(value) {
+    if (value === null || value === undefined) return null
+    if (typeof value !== 'string') return undefined
+    const description = value.trim()
+    if (description.length > 2000) return undefined
+    return description || null
+}
+
+function normalizeOptions(value) {
+    if (!Array.isArray(value) || value.length < 2 || value.length > 20) return null
+    const options = []
+    for (const item of value) {
+        if (typeof item !== 'string') return null
+        const text = item.trim()
+        if (!text || text.length > 200) return null
+        options.push(text)
+    }
+    return options
+}
+
+function parseEndTime(value) {
+    if (value === null || value === undefined || value === '') return null
+    if (typeof value !== 'string') return undefined
+    const endTime = new Date(value)
+    if (Number.isNaN(endTime.getTime())) return undefined
+    return endTime
+}
+
+function parsePage(query) {
+    const page = Math.max(parseInt(query.page, 10) || 1, 1)
+    const pageSize = Math.min(Math.max(parseInt(query.pageSize, 10) || 10, 1), 100)
+    return { page, pageSize, offset: (page - 1) * pageSize }
+}
+
 async function getPolls(req, res) {
-    const { status, page = 1, pageSize = 10 } = req.query
-    const pageNum = parseInt(page) || 1
-    const limit = parseInt(pageSize) || 10
-    const offset = (pageNum - 1) * limit
+    const { status } = req.query
+    const { page: pageNum, pageSize: limit, offset } = parsePage(req.query)
+
+    if (status && !VALID_STATUSES.includes(status)) {
+        return res.status(400).json({
+            code: 400,
+            msg: '状态值无效，必须是 draft/active/closed'
+        })
+    }
 
     let whereClause = 'WHERE 1=1'
     const params = []
@@ -28,9 +77,6 @@ async function getPolls(req, res) {
         whereClause += ' AND p.status = ?'
         params.push(status)
     }
-
-    console.log('🔍 whereClause:', whereClause)
-    console.log('🔍 params (before count):', params)
 
     try {
         // 查询总数
@@ -42,12 +88,10 @@ async function getPolls(req, res) {
 
         // 查询列表
         const listParams = [...params, limit, offset]
-        console.log('🔍 listParams:', listParams)
-
         const [rows] = await pool.query(
             `SELECT p.id, p.title, p.description, p.type, p.status, p.end_time, p.created_at,
                     u.username as creator_name,
-                    (SELECT COUNT(*) FROM votes v WHERE v.poll_id = p.id) as vote_count,
+                    (SELECT COUNT(*) FROM vote_submissions vs WHERE vs.poll_id = p.id) as vote_count,
                     (SELECT COUNT(*) FROM options o WHERE o.poll_id = p.id) as option_count
              FROM polls p
              LEFT JOIN users u ON p.created_by = u.id
@@ -61,7 +105,7 @@ async function getPolls(req, res) {
             code: 200,
             data: {
                 list: rows,
-                total: total,
+                total,
                 page: pageNum,
                 pageSize: limit,
                 totalPages: Math.ceil(total / limit)
@@ -120,39 +164,92 @@ async function getPollById(req, res) {
 }
 
 async function createPoll(req, res) {
-    const { title, description, type, options, endTime, isAnonymous } = req.body
+    const body = req.body || {}
+    const { title, description, type, options, endTime, isAnonymous } = body
 
-    if (!title || !options || options.length < 2) {
+    const cleanTitle = normalizeTitle(title)
+    const cleanOptions = normalizeOptions(options)
+    const cleanDescription = normalizeDescription(description)
+    const cleanType = type === undefined ? 'single' : type
+
+    if (!cleanTitle || !cleanOptions || cleanDescription === undefined) {
         return res.status(400).json({
             code: 400,
-            msg: '请填写标题并至少添加2个选项'
+            msg: '请填写 1-200 字标题和 2-20 个非空选项'
         })
     }
 
-    const conn = await pool.getConnection()
+    if (!VALID_TYPES.includes(cleanType)) {
+        return res.status(400).json({
+            code: 400,
+            msg: '投票类型必须是 single 或 multi'
+        })
+    }
+
+    if (isAnonymous !== undefined && typeof isAnonymous !== 'boolean') {
+        return res.status(400).json({
+            code: 400,
+            msg: 'isAnonymous 必须是布尔值'
+        })
+    }
+
+    const parsedEndTime = parseEndTime(endTime)
+    if (parsedEndTime === undefined) {
+        return res.status(400).json({
+            code: 400,
+            msg: '截止时间格式无效'
+        })
+    }
+    if (parsedEndTime && parsedEndTime.getTime() <= Date.now()) {
+        return res.status(400).json({
+            code: 400,
+            msg: '截止时间必须晚于当前时间'
+        })
+    }
+
+    let maxChoicesNum = 0
+    if (cleanType === 'multi' && body.maxChoices !== undefined && body.maxChoices !== '') {
+        const parsedMaxChoices = Number(body.maxChoices)
+        if (!Number.isInteger(parsedMaxChoices) || parsedMaxChoices < 0) {
+            return res.status(400).json({
+                code: 400,
+                msg: '最多可选数必须是非负整数'
+            })
+        }
+        maxChoicesNum = parsedMaxChoices
+    }
+    if (maxChoicesNum > cleanOptions.length) {
+        return res.status(400).json({
+            code: 400,
+            msg: '最多可选数必须在 0 到选项数量之间'
+        })
+    }
+
+    let conn
     try {
+        conn = await pool.getConnection()
         await conn.beginTransaction()
 
         const [result] = await conn.query(
             `INSERT INTO polls (title, description, type, status, end_time, is_anonymous, created_by, max_choices)
             VALUES (?, ?, ?, 'active', ?, ?, ?, ?)`,
             [
-                title,
-                description || null,
-                type || 'single',
-                endTime || null,
-                isAnonymous || false,
+                cleanTitle,
+                cleanDescription,
+                cleanType,
+                parsedEndTime,
+                isAnonymous === true,
                 req.user.id,
-                req.body.maxChoices || 0
+                maxChoicesNum
             ]
         )
 
         const pollId = result.insertId
 
-        for (let i = 0; i < options.length; i++) {
+        for (let i = 0; i < cleanOptions.length; i++) {
             await conn.query(
                 'INSERT INTO options (poll_id, option_text, sort_order) VALUES (?, ?, ?)',
-                [pollId, options[i], i + 1]
+                [pollId, cleanOptions[i], i + 1]
             )
         }
 
@@ -164,63 +261,130 @@ async function createPoll(req, res) {
             data: { id: pollId }
         })
     } catch (err) {
-        await conn.rollback()
+        if (conn) {
+            try {
+                await conn.rollback()
+            } catch (rollbackErr) {
+                console.error('创建投票回滚失败:', rollbackErr)
+            }
+        }
         console.error('创建投票错误:', err)
         res.status(500).json({
             code: 500,
             msg: '服务器错误'
         })
     } finally {
-        conn.release()
+        if (conn) conn.release()
     }
 }
 
 async function updatePoll(req, res) {
     const { id } = req.params
-    const { title, description, type, status, endTime, isAnonymous, maxChoices } = req.body
-
-    // 校验 status 合法性
-    const validStatuses = ['draft', 'active', 'closed']
-    if (status && !validStatuses.includes(status)) {
-        return res.status(400).json({
-            code: 400,
-            msg: '状态值无效，必须是 draft/active/closed'
-        })
-    }
-
-    // 校验 maxChoices
-    const maxChoicesNum = parseInt(maxChoices) || 0
-    if (maxChoicesNum < 0) {
-        return res.status(400).json({
-            code: 400,
-            msg: 'maxChoices 不能为负数'
-        })
-    }
+    const body = req.body || {}
+    const has = (key) => Object.prototype.hasOwnProperty.call(body, key)
 
     try {
-        const [result] = await pool.query(
-            `UPDATE polls
-             SET title = ?, description = ?, type = ?, status = ?, end_time = ?, is_anonymous = ?, max_choices = ?
+        const [polls] = await pool.query(
+            `SELECT id, title, description, type, status, end_time, is_anonymous, max_choices
+             FROM polls
              WHERE id = ? AND created_by = ?`,
-            [
-                title,
-                description || null,
-                type || 'single',
-                status || 'active',
-                endTime || null,
-                isAnonymous || false,
-                maxChoicesNum,
-                id,
-                req.user.id
-            ]
+            [id, req.user.id]
         )
 
-        if (result.affectedRows === 0) {
+        if (polls.length === 0) {
             return res.status(404).json({
                 code: 404,
                 msg: '投票不存在或无权限修改'
             })
         }
+
+        const current = polls[0]
+        const next = {
+            title: current.title,
+            description: current.description,
+            type: current.type,
+            status: current.status,
+            end_time: current.end_time,
+            is_anonymous: Boolean(current.is_anonymous),
+            max_choices: current.max_choices
+        }
+
+        if (has('title')) {
+            const title = normalizeTitle(body.title)
+            if (!title) {
+                return res.status(400).json({ code: 400, msg: '标题必须为 1-200 字' })
+            }
+            next.title = title
+        }
+
+        if (has('description')) {
+            const description = normalizeDescription(body.description)
+            if (description === undefined) {
+                return res.status(400).json({ code: 400, msg: '说明格式无效或超过 2000 字' })
+            }
+            next.description = description
+        }
+
+        if (has('type')) {
+            if (!VALID_TYPES.includes(body.type)) {
+                return res.status(400).json({ code: 400, msg: '投票类型必须是 single 或 multi' })
+            }
+            next.type = body.type
+        }
+
+        if (has('status')) {
+            if (!VALID_STATUSES.includes(body.status)) {
+                return res.status(400).json({
+                    code: 400,
+                    msg: '状态值无效，必须是 draft/active/closed'
+                })
+            }
+            next.status = body.status
+        }
+
+        if (has('maxChoices')) {
+            const maxChoices = parseInt(body.maxChoices, 10)
+            if (!Number.isInteger(maxChoices) || maxChoices < 0 || maxChoices > 100) {
+                return res.status(400).json({ code: 400, msg: 'maxChoices 必须是 0-100 的整数' })
+            }
+            next.max_choices = maxChoices
+        }
+
+        if (next.type === 'single') {
+            next.max_choices = 0
+        }
+
+        if (has('endTime')) {
+            const endTime = parseEndTime(body.endTime)
+            if (endTime === undefined) {
+                return res.status(400).json({ code: 400, msg: '截止时间格式无效' })
+            }
+            next.end_time = endTime
+        }
+
+        if (has('isAnonymous')) {
+            if (typeof body.isAnonymous !== 'boolean') {
+                return res.status(400).json({ code: 400, msg: 'isAnonymous 必须是布尔值' })
+            }
+            next.is_anonymous = body.isAnonymous
+        }
+
+        await pool.query(
+            `UPDATE polls
+             SET title = ?, description = ?, type = ?, status = ?, end_time = ?, is_anonymous = ?, max_choices = ?
+             WHERE id = ? AND created_by = ?`,
+            [
+                next.title,
+                next.description,
+                next.type,
+                next.status,
+                next.end_time,
+                next.is_anonymous,
+                next.max_choices,
+                id,
+                req.user.id
+            ]
+        )
 
         res.json({
             code: 200,
@@ -274,10 +438,7 @@ async function deletePoll(req, res) {
 }
 
 async function getMyPolls(req, res) {
-    const { page = 1, pageSize = 10 } = req.query
-    const pageNum = parseInt(page) || 1
-    const limit = parseInt(pageSize) || 10
-    const offset = (pageNum - 1) * limit
+    const { page: pageNum, pageSize: limit, offset } = parsePage(req.query)
 
     try {
         const [countResult] = await pool.query(
@@ -288,7 +449,7 @@ async function getMyPolls(req, res) {
 
         const [rows] = await pool.query(
             `SELECT p.id, p.title, p.type, p.status, p.end_time, p.created_at,
-                    (SELECT COUNT(*) FROM votes v WHERE v.poll_id = p.id) as vote_count
+                    (SELECT COUNT(*) FROM vote_submissions vs WHERE vs.poll_id = p.id) as vote_count
              FROM polls p
              WHERE p.created_by = ?
              ORDER BY p.created_at DESC
@@ -300,7 +461,7 @@ async function getMyPolls(req, res) {
             code: 200,
             data: {
                 list: rows,
-                total: total,
+                total,
                 page: pageNum,
                 pageSize: limit,
                 totalPages: Math.ceil(total / limit)

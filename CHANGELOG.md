@@ -15,14 +15,38 @@
 - ECharts 按需加载
 - TypeScript 迁移评估
 
+### 变更
+
+- 投票记录拆分为 `vote_submissions`（一人一票）和 `vote_choices`（多选明细），新增 `sql/migrations/001_vote_submissions.sql` 迁移旧 `votes` 表
+- 参与人数改为统计提交记录，多选投票不再按行数重复计数
+
 ### 安全
 
 - 将 Node.js 支持范围收紧至 **22.23.4+ / 24.22.1+**：Node 18/20 已 EOL，且不含 eMudhra 中间 CA 私钥事件的修复，旧运行时仍可能信任可被还原的证书链
 - CI 矩阵由 Node.js 18.x / 20.x 调整为 **22.x / 24.x**
+- 前端统一转义用户输入，修复投票标题/说明/选项名/图表 tooltip/选项属性中的存储型 XSS
+- 移除全局 `trust proxy=true`，只有显式配置 `TRUST_PROXY` 才信任代理头；新增 `CORS_ORIGIN` 白名单
+- CSV 导出改用安全文件名和唯一临时文件，修复标题路径穿越；对公式前缀做转义
+- 启动日志不再打印默认管理员密码；Redis 连接失败日志按分钟限频
+- Docker Compose 的 MySQL / Redis 端口仅绑定 `127.0.0.1`，避免本地开发服务暴露到局域网
+- Docker Compose 只挂载 `sql/init.sql` 作为初始化脚本，避免本地 `init.local.sql` 的旧表结构被意外执行
+
+### 修复
+
+- 修复多选投票第二条 INSERT 触发 `uk_user_poll` 唯一键、整笔投票回滚的问题
+- 修复 AI 接口收到非字符串 `topic` 时 `.trim()` 抛错导致进程退出的问题
+- 投票提交增加截止时间校验，过期投票不再能投
+- 投票结果接口在 Redis 不可用时降级查询数据库，不再返回 500
+- 结果页保留标题/类型/最大可选数，修复标题停留在“加载中...”
+- 更新投票改为按字段合并，避免未传字段被清空；相同值更新不再误报 404
+- 补全标题/选项/截止时间/分页校验；登录时不再 trim 密码
+- Docker MySQL 显式使用 +08:00 时区，默认截止时间使用本地时间
+- 补充缺失的 `redis` 依赖声明，避免全新安装或 CI 出现 `Cannot find module 'redis'`
+- 修复全新数据库初始化后默认管理员无法登录的问题
 
 ### 文档
 
-- README 覆盖率统一为 **85.71%**（`npm test` 实测语句覆盖率），修正原先 74%+ 的过时表述，与 1.2.0 记录保持一致
+- README 覆盖率按重构后 `npm test` 实测更新为 **81.67%**
 - README 环境要求由 Node.js 14+ 收紧为 **22.23.4+ / 24.22.1+**（openai 4.x、Helmet 8 只要求 Node 18+，Jest 30 要求 18.14+；18/20 已 EOL，故按含 eMudhra CA 修复的安全版本设下限），并同步 `engines.node`
 - README 默认账号改为可直接登录的固定演示账号，移除“你生成哈希时设置的明文密码”的占位说明
 
@@ -30,10 +54,6 @@
 
 - `npm run seed`：新增 `scripts/seed.js`，从 `.env` 读取数据库配置，幂等创建/重置演示账号 `admin / admin123`（管理员）和 `demo / demo123`（普通用户）
 - `sql/init.sql` 内置可用的 `admin` 密码哈希（原为 `$2a$10$REPLACE_WITH_YOUR_BCRYPT_HASH` 占位符，导致默认账号无法登录）
-
-### 修复
-
-- 修复全新数据库初始化后默认管理员无法登录的问题
 
 ---
 
