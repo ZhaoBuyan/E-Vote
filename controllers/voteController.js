@@ -226,27 +226,10 @@ async function getResults(req, res) {
     const { id: pollId } = req.params
     const cacheKey = `poll:${pollId}:results`
 
-    let cached = null
     try {
-        cached = await redisClient.get(cacheKey)
-    } catch (cacheErr) {
-        console.warn('⚠️ 读取缓存失败，直接查询数据库:', cacheErr.message)
-    }
-
-    if (cached) {
-        try {
-            return res.json({
-                code: 200,
-                data: JSON.parse(cached)
-            })
-        } catch (parseErr) {
-            console.warn('⚠️ 缓存数据损坏，忽略缓存:', parseErr.message)
-        }
-    }
-
-    try {
+        // 先查投票元数据，草稿只允许创建者/管理员查看
         const [polls] = await pool.execute(
-            'SELECT title, type, max_choices FROM polls WHERE id = ?',
+            'SELECT title, type, max_choices, status, created_by FROM polls WHERE id = ?',
             [pollId]
         )
 
@@ -255,6 +238,34 @@ async function getResults(req, res) {
                 code: 404,
                 msg: '投票不存在'
             })
+        }
+
+        const poll = polls[0]
+        const canSeeDraft =
+            req.user && (req.user.id === poll.created_by || req.user.role === 'admin')
+        if (poll.status === 'draft' && !canSeeDraft) {
+            return res.status(404).json({
+                code: 404,
+                msg: '投票不存在'
+            })
+        }
+
+        let cached = null
+        try {
+            cached = await redisClient.get(cacheKey)
+        } catch (cacheErr) {
+            console.warn('⚠️ 读取缓存失败，直接查询数据库:', cacheErr.message)
+        }
+
+        if (cached) {
+            try {
+                return res.json({
+                    code: 200,
+                    data: JSON.parse(cached)
+                })
+            } catch (parseErr) {
+                console.warn('⚠️ 缓存数据损坏，忽略缓存:', parseErr.message)
+            }
         }
 
         const [results] = await pool.execute(
@@ -284,9 +295,9 @@ async function getResults(req, res) {
         }))
 
         const data = {
-            title: polls[0].title,
-            type: polls[0].type,
-            maxChoices: polls[0].max_choices || 0,
+            title: poll.title,
+            type: poll.type,
+            maxChoices: poll.max_choices || 0,
             totalVoters,
             options: optionsWithPercent
         }
@@ -316,8 +327,19 @@ async function exportResults(req, res) {
     const safePollId = String(pollId).replace(/[^\w-]/g, '')
 
     try {
-        const [polls] = await pool.execute('SELECT title FROM polls WHERE id = ?', [pollId])
+        const [polls] = await pool.execute(
+            'SELECT title, status, created_by FROM polls WHERE id = ?',
+            [pollId]
+        )
         if (polls.length === 0) {
+            return res.status(404).json({ code: 404, msg: '投票不存在' })
+        }
+        const poll = polls[0]
+        if (
+            poll.status === 'draft' &&
+            req.user.id !== poll.created_by &&
+            req.user.role !== 'admin'
+        ) {
             return res.status(404).json({ code: 404, msg: '投票不存在' })
         }
 
@@ -370,7 +392,7 @@ async function exportResults(req, res) {
         await csvWriter.writeRecords(data)
 
         // 下载文件名使用安全标题，并通过 RFC 5987 传递 UTF-8 名称
-        const safeTitle = polls[0].title
+        const safeTitle = poll.title
             .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_')
             .trim()
             .slice(0, 40)

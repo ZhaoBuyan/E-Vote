@@ -277,6 +277,27 @@ describe('voteController', () => {
             )
         })
 
+        it('should hide draft results from non-owners', async () => {
+            req.params = { id: '1' }
+            req.user = undefined
+            pool.execute.mockResolvedValueOnce([
+                [
+                    {
+                        title: 'Draft',
+                        type: 'single',
+                        max_choices: 0,
+                        status: 'draft',
+                        created_by: 1
+                    }
+                ]
+            ])
+
+            await voteController.getResults(req, res)
+
+            expect(res.status).toHaveBeenCalledWith(404)
+            expect(redisClient.get).not.toHaveBeenCalled()
+        })
+
         it('should return cached data if Redis hit', async () => {
             req.params = { id: '1' }
             const cachedData = {
@@ -286,6 +307,17 @@ describe('voteController', () => {
                 totalVoters: 10,
                 options: [{ id: 1, text: 'A', count: 5, percentage: 50 }]
             }
+            pool.execute.mockResolvedValueOnce([
+                [
+                    {
+                        title: 'Cached Poll',
+                        type: 'single',
+                        max_choices: 0,
+                        status: 'active',
+                        created_by: 1
+                    }
+                ]
+            ])
             redisClient.get.mockResolvedValue(JSON.stringify(cachedData))
 
             await voteController.getResults(req, res)
@@ -294,7 +326,8 @@ describe('voteController', () => {
                 code: 200,
                 data: cachedData
             })
-            expect(pool.execute).not.toHaveBeenCalled()
+            // 缓存命中前只查一次投票元数据（用于草稿权限判断）
+            expect(pool.execute).toHaveBeenCalledTimes(1)
         })
 
         it('should fall back to the database if Redis read fails', async () => {
@@ -375,6 +408,18 @@ describe('voteController', () => {
                     msg: '投票不存在'
                 })
             )
+        })
+
+        it('should hide draft exports from non-owners', async () => {
+            req.user = { id: 2, role: 'user' }
+            pool.execute.mockResolvedValueOnce([
+                [{ title: 'Draft', status: 'draft', created_by: 1 }]
+            ])
+
+            await voteController.exportResults(req, res)
+
+            expect(res.status).toHaveBeenCalledWith(404)
+            expect(res.sendFile).not.toHaveBeenCalled()
         })
 
         it('should export CSV successfully', async () => {

@@ -401,7 +401,7 @@ function renderList(options, totalVoters) {
                     <span class="fw-bold">${opt.count} 票 (${pct}%)</span>
                 </div>
                 <div class="progress">
-                    <div class="progress-bar ${barColor}" style="width: ${Math.max(pct, 2)}%; transition: width 0.3s ease;">
+                    <div class="progress-bar ${barColor}" data-width="${Math.max(pct, 2)}">
                         ${pct > 5 ? pct + '%' : ''}
                     </div>
                 </div>
@@ -410,6 +410,12 @@ function renderList(options, totalVoters) {
     })
 
     $('#resultList').html(html)
+
+    // 动态宽度通过 CSSOM 设置，避免生成内联 style 属性
+    $('#resultList .progress-bar').each(function () {
+        const width = parseFloat($(this).data('width')) || 0
+        $(this).css('width', width + '%')
+    })
 }
 
 // ============================================================

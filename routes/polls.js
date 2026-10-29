@@ -8,11 +8,11 @@ const {
     deletePoll,
     getMyPolls
 } = require('../controllers/pollController')
-const { authMiddleware } = require('../middleware/auth')
+const { authMiddleware, optionalAuthMiddleware } = require('../middleware/auth')
 
 // 公开路由
 router.get('/', getPolls)
-router.get('/:id', getPollById)
+router.get('/:id', optionalAuthMiddleware, getPollById)
 
 // 需要认证的路由
 router.get('/my/list', authMiddleware, getMyPolls)

@@ -70,7 +70,14 @@ async function getPolls(req, res) {
         })
     }
 
-    let whereClause = 'WHERE 1=1'
+    if (status === 'draft') {
+        return res.status(403).json({
+            code: 403,
+            msg: '草稿投票仅创建者可见'
+        })
+    }
+
+    let whereClause = "WHERE p.status != 'draft'"
     const params = []
 
     if (status) {
@@ -148,6 +155,14 @@ async function getPollById(req, res) {
         )
 
         const poll = polls[0]
+        const isOwner = req.user && req.user.id === poll.created_by
+        const isAdmin = req.user && req.user.role === 'admin'
+        if (poll.status === 'draft' && !isOwner && !isAdmin) {
+            return res.status(404).json({
+                code: 404,
+                msg: '投票不存在'
+            })
+        }
         poll.options = options
 
         res.json({

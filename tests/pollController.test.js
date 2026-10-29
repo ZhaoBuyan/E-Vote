@@ -63,6 +63,15 @@ describe('pollController', () => {
                 })
             )
         })
+
+        it('should not expose drafts through the public list', async () => {
+            req.query = { status: 'draft' }
+
+            await pollController.getPolls(req, res)
+
+            expect(res.status).toHaveBeenCalledWith(403)
+            expect(pool.query).not.toHaveBeenCalled()
+        })
     })
 
     describe('getPollById', () => {
@@ -77,6 +86,19 @@ describe('pollController', () => {
                     msg: '投票不存在'
                 })
             )
+        })
+
+        it('should hide a draft poll from non-owners', async () => {
+            req.params = { id: 1 }
+            req.user = undefined
+            pool.query.mockResolvedValueOnce([
+                [{ id: 1, title: 'Draft', status: 'draft', created_by: 1 }]
+            ])
+            pool.query.mockResolvedValueOnce([[]])
+
+            await pollController.getPollById(req, res)
+
+            expect(res.status).toHaveBeenCalledWith(404)
         })
 
         it('should return poll with options', async () => {

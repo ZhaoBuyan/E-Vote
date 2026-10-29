@@ -30,6 +30,10 @@
 - 启动日志不再打印默认管理员密码；Redis 连接失败日志按分钟限频
 - Docker Compose 的 MySQL / Redis 端口仅绑定 `127.0.0.1`，避免本地开发服务暴露到局域网
 - Docker Compose 只挂载 `sql/init.sql` 作为初始化脚本，避免本地 `init.local.sql` 的旧表结构被意外执行
+- CSP 移除 `unsafe-inline`，内联事件改为事件委托，内联样式移入 `style.css`
+- 认证中间件每次请求回查数据库用户/角色，token 里的旧角色不再继续生效
+- 草稿投票不再出现在公开列表/详情/结果/导出中，仅创建者或管理员可见
+- 升级 express 到 `^4.22.3` 并补充 redis `^6.3.0`；`npm audit --omit=dev` 生产依赖漏洞为 0
 
 ### 修复
 
@@ -46,7 +50,7 @@
 
 ### 文档
 
-- README 覆盖率按重构后 `npm test` 实测更新为 **81.67%**
+- README 覆盖率按重构后 `npm test` 实测更新为 **82.43%**
 - README 环境要求由 Node.js 14+ 收紧为 **22.23.4+ / 24.22.1+**（openai 4.x、Helmet 8 只要求 Node 18+，Jest 30 要求 18.14+；18/20 已 EOL，故按含 eMudhra CA 修复的安全版本设下限），并同步 `engines.node`
 - README 默认账号改为可直接登录的固定演示账号，移除“你生成哈希时设置的明文密码”的占位说明
 

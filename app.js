@@ -26,6 +26,20 @@ const corsOrigin = process.env.CORS_ORIGIN
           .map((origin) => origin.trim())
           .filter(Boolean)
     : false
+const extraConnectSrc = process.env.CSP_CONNECT_SRC
+    ? process.env.CSP_CONNECT_SRC.split(',')
+          .map((origin) => origin.trim())
+          .filter(Boolean)
+    : []
+const connectSrc = ["'self'", ...extraConnectSrc]
+if (process.env.NODE_ENV !== 'production') {
+    connectSrc.push(
+        'ws://localhost:*',
+        'wss://localhost:*',
+        'ws://127.0.0.1:*',
+        'wss://127.0.0.1:*'
+    )
+}
 
 // 只有显式配置 TRUST_PROXY 时才信任代理头，避免 X-Forwarded-For 绕过限流
 if (process.env.TRUST_PROXY) {
@@ -73,19 +87,13 @@ app.use(
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
-                scriptSrc: ["'self'", "'unsafe-inline'", 'cdn.jsdelivr.net', 'cdn.socket.io'],
-                styleSrc: ["'self'", "'unsafe-inline'", 'cdn.jsdelivr.net'],
+                scriptSrc: ["'self'", 'cdn.jsdelivr.net', 'cdn.socket.io'],
+                styleSrc: ["'self'", 'cdn.jsdelivr.net'],
                 imgSrc: ["'self'", 'data:', 'https:'],
-                connectSrc: [
-                    "'self'",
-                    'ws://localhost:3000',
-                    'wss://localhost:3000',
-                    'cdn.jsdelivr.net', // 新增
-                    'cdn.socket.io' // 新增
-                ],
+                connectSrc,
                 fontSrc: ["'self'", 'cdn.jsdelivr.net'],
                 objectSrc: ["'none'"],
-                upgradeInsecureRequests: []
+                upgradeInsecureRequests: null
             }
         }
     })

@@ -7,6 +7,17 @@ $(function () {
         return
     }
     loadMyPolls(1)
+
+    $('#pollList').on('click', '[data-delete-poll]', function () {
+        deletePoll(parseInt($(this).data('delete-poll'), 10))
+    })
+
+    $('#pagination').on('click', '.page-link', function (e) {
+        e.preventDefault()
+        if ($(this).closest('.page-item').hasClass('disabled')) return
+        const page = parseInt($(this).data('page'), 10)
+        if (page >= 1) loadMyPolls(page)
+    })
 })
 
 function loadMyPolls(page) {
@@ -51,7 +62,7 @@ function renderList(list) {
                 <td>
                     <a href="result.html?id=${poll.id}" class="btn btn-sm btn-outline-primary me-1">结果</a>
                     <a href="poll.html?id=${poll.id}" class="btn btn-sm btn-outline-secondary me-1">详情</a>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deletePoll(${poll.id})">删除</button>
+                    <button class="btn btn-sm btn-outline-danger" data-delete-poll="${poll.id}">删除</button>
                 </td>
             </tr>
         `
@@ -64,15 +75,15 @@ function renderPagination(data) {
     const totalPages = data.totalPages || 1
     let html = ''
     html += `<li class="page-item ${data.page <= 1 ? 'disabled' : ''}">
-                <a class="page-link" href="#" onclick="loadMyPolls(${data.page - 1})">上一页</a>
+                <a class="page-link" href="#" data-page="${data.page - 1}">上一页</a>
             </li>`
     for (let i = 1; i <= totalPages; i++) {
         html += `<li class="page-item ${i === data.page ? 'active' : ''}">
-                    <a class="page-link" href="#" onclick="loadMyPolls(${i})">${i}</a>
+                    <a class="page-link" href="#" data-page="${i}">${i}</a>
                 </li>`
     }
     html += `<li class="page-item ${data.page >= totalPages ? 'disabled' : ''}">
-                <a class="page-link" href="#" onclick="loadMyPolls(${data.page + 1})">下一页</a>
+                <a class="page-link" href="#" data-page="${data.page + 1}">下一页</a>
             </li>`
     $('#pagination').html(html)
 }

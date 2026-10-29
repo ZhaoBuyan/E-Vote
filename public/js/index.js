@@ -73,15 +73,15 @@ function renderPagination(data) {
     const totalPages = data.totalPages || 1
     let html = ''
     html += `<li class="page-item ${data.page <= 1 ? 'disabled' : ''}">
-                <a class="page-link" href="#" onclick="loadPolls(${data.page - 1})">上一页</a>
+                <a class="page-link" href="#" data-page="${data.page - 1}">上一页</a>
             </li>`
     for (let i = 1; i <= totalPages; i++) {
         html += `<li class="page-item ${i === data.page ? 'active' : ''}">
-                    <a class="page-link" href="#" onclick="loadPolls(${i})">${i}</a>
+                    <a class="page-link" href="#" data-page="${i}">${i}</a>
                 </li>`
     }
     html += `<li class="page-item ${data.page >= totalPages ? 'disabled' : ''}">
-                <a class="page-link" href="#" onclick="loadPolls(${data.page + 1})">下一页</a>
+                <a class="page-link" href="#" data-page="${data.page + 1}">下一页</a>
             </li>`
     $('#pagination').html(html)
 }
@@ -91,6 +91,13 @@ $(function () {
         // 未登录也可以查看投票列表
     }
     loadPolls(1)
+
+    $('#pagination').on('click', '.page-link', function (e) {
+        e.preventDefault()
+        if ($(this).closest('.page-item').hasClass('disabled')) return
+        const page = parseInt($(this).data('page'), 10)
+        if (page >= 1) loadPolls(page)
+    })
 
     $('#refreshBtn').on('click', function () {
         loadPolls(currentPage)

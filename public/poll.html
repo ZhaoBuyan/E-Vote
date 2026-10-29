@@ -34,16 +34,15 @@
                                     <span class="badge bg-secondary" id="pollStatus">进行中</span>
                                     <span class="badge bg-info" id="pollEndTime"></span>
                                     <span
-                                        class="badge bg-warning text-dark"
+                                        class="badge bg-warning text-dark is-hidden"
                                         id="pollMaxChoices"
-                                        style="display: none"
                                     ></span>
                                 </div>
                             </div>
 
                             <hr />
 
-                            <div id="votedInfo" class="alert alert-success" style="display: none">
+                            <div id="votedInfo" class="alert alert-success is-hidden">
                                 ✅ 您已参与本次投票，<a href="result.html?id=" id="resultLink"
                                     >查看结果</a
                                 >
@@ -51,11 +50,7 @@
 
                             <form id="voteForm">
                                 <div id="optionsContainer"></div>
-                                <div
-                                    id="errorMsg"
-                                    class="text-danger mb-3"
-                                    style="display: none"
-                                ></div>
+                                <div id="errorMsg" class="text-danger mb-3 is-hidden"></div>
                                 <button type="submit" class="btn btn-primary" id="submitBtn">
                                     提交投票
                                 </button>

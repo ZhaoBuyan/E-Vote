@@ -53,7 +53,7 @@ function addOption(text) {
     container.append(`
         <div class="input-group mb-2 option-item">
             <input type="text" class="form-control" placeholder="选项 ${count}" value="${escapeAttr(val)}" required>
-            <button class="btn btn-outline-danger" type="button" onclick="removeOption(this)">✕</button>
+            <button class="btn btn-outline-danger" type="button" data-action="remove-option">✕</button>
         </div>
     `)
 }
@@ -488,6 +488,14 @@ $(function () {
     var defaultEnd = new Date()
     defaultEnd.setDate(defaultEnd.getDate() + 7)
     $('#pollEndTime').val(toLocalDateTimeInput(defaultEnd))
+
+    // 选项按钮使用事件委托，避免内联 onclick（CSP 不再允许 unsafe-inline）
+    $('#optionsContainer').on('click', '[data-action="remove-option"]', function () {
+        removeOption(this)
+    })
+    $('#addOptionBtn').on('click', function () {
+        addOption()
+    })
 
     $('#aiStatus').html('💡 输入主题后点击 "✨ AI 生成"，或点击下方模板').css('color', '#6c757d')
     $('#batchStatus').html('💡 粘贴内容后点击按钮填充').css('color', '#6c757d')

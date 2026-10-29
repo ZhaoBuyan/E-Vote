@@ -63,6 +63,85 @@ body {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+/* ============ 通用状态 ============ */
+.is-hidden {
+    display: none;
+}
+
+/* ============ 创建投票页 ============ */
+.template-label {
+    font-size: 0.85rem;
+}
+.template-btn {
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.8rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid #dee2e6;
+    background: #f8f9fa;
+    color: #495057;
+}
+.template-btn:hover {
+    background: #e3f2fd;
+    border-color: #0d47a1;
+    color: #0d47a1;
+    transform: translateY(-1px);
+}
+.template-btn:active {
+    transform: scale(0.96);
+}
+.template-section {
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+.ai-status-text {
+    font-size: 0.85rem;
+    margin-top: 4px;
+}
+#aiGenerateBtn {
+    white-space: nowrap;
+}
+.title-input-group {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+}
+.title-input-group .form-control {
+    flex: 1;
+}
+.title-input-group .btn {
+    flex-shrink: 0;
+}
+.batch-input-area textarea {
+    font-size: 0.9rem;
+    resize: vertical;
+    min-height: 120px;
+}
+.batch-input-area .btn {
+    font-size: 0.85rem;
+}
+
+/* ============ 结果页 ============ */
+.chart-container {
+    height: 400px;
+}
+.result-item {
+    transition: all 0.3s;
+}
+.result-item:hover {
+    background-color: #f8f9fa;
+}
+.result-page .progress {
+    height: 25px;
+    border-radius: 12px;
+}
+.result-page .progress-bar {
+    transition: width 0.5s ease;
+}
+
 /* ============ 响应式 ============ */
 @media (max-width: 768px) {
     .card-body {

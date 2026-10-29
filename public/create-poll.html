@@ -9,59 +9,6 @@
             rel="stylesheet"
         />
         <link href="css/style.css" rel="stylesheet" />
-        <style>
-            .template-btn {
-                cursor: pointer;
-                transition: all 0.2s;
-                font-size: 0.8rem;
-                padding: 4px 12px;
-                border-radius: 20px;
-                border: 1px solid #dee2e6;
-                background: #f8f9fa;
-                color: #495057;
-            }
-            .template-btn:hover {
-                background: #e3f2fd;
-                border-color: #0d47a1;
-                color: #0d47a1;
-                transform: translateY(-1px);
-            }
-            .template-btn:active {
-                transform: scale(0.96);
-            }
-            .template-section {
-                padding: 8px 12px;
-                background: #f8f9fa;
-                border-radius: 8px;
-                margin-bottom: 16px;
-            }
-            .ai-status-text {
-                font-size: 0.85rem;
-                margin-top: 4px;
-            }
-            #aiGenerateBtn {
-                white-space: nowrap;
-            }
-            .title-input-group {
-                display: flex;
-                gap: 10px;
-                align-items: stretch;
-            }
-            .title-input-group .form-control {
-                flex: 1;
-            }
-            .title-input-group .btn {
-                flex-shrink: 0;
-            }
-            .batch-input-area textarea {
-                font-size: 0.9rem;
-                resize: vertical;
-                min-height: 120px;
-            }
-            .batch-input-area .btn {
-                font-size: 0.85rem;
-            }
-        </style>
     </head>
     <body>
         <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -108,7 +55,7 @@
 
                                 <!-- ====== 快速模板 ====== -->
                                 <div class="template-section mb-3">
-                                    <span class="text-muted me-2" style="font-size: 0.85rem"
+                                    <span class="text-muted me-2 template-label"
                                         >📋 快速模板：</span
                                     >
                                     <button
@@ -169,9 +116,8 @@
                                         </select>
                                     </div>
                                     <div
-                                        class="col-md-6"
+                                        class="col-md-6 is-hidden"
                                         id="maxChoicesWrapper"
-                                        style="display: none"
                                     >
                                         <label class="form-label"
                                             >最多可选
@@ -235,7 +181,7 @@
                                         <button
                                             class="btn btn-outline-danger"
                                             type="button"
-                                            onclick="removeOption(this)"
+                                            data-action="remove-option"
                                         >
                                             ✕
                                         </button>
@@ -250,7 +196,7 @@
                                         <button
                                             class="btn btn-outline-danger"
                                             type="button"
-                                            onclick="removeOption(this)"
+                                            data-action="remove-option"
                                         >
                                             ✕
                                         </button>
@@ -259,15 +205,14 @@
                                 <button
                                     type="button"
                                     class="btn btn-outline-secondary btn-sm mb-3"
-                                    onclick="addOption()"
+                                    id="addOptionBtn"
                                 >
                                     + 添加选项
                                 </button>
 
                                 <div
                                     id="errorMsg"
-                                    class="text-danger mb-3"
-                                    style="display: none"
+                                    class="text-danger mb-3 is-hidden"
                                 ></div>
 
                                 <!-- ====== 提交按钮 ====== -->

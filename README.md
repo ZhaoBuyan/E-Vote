@@ -25,8 +25,8 @@
 | 🖱️ **多选限制**    | 多选投票支持设置最大可选数，防止刷票                                    |
 | 📱 **响应式设计**  | Bootstrap 5 适配 PC / 平板 / 手机                                       |
 | 📝 **结构化日志**  | Winston 日志系统，JSON 格式输出，支持日志轮转                           |
-| 🔒 **安全加固**    | Helmet 安全头 + 分层限流（全局/API/敏感接口）                           |
-| 🧪 **单元测试**    | Jest 测试框架，覆盖核心控制器（覆盖率 81.67%）                            |
+| 🔒 **安全加固**    | Helmet 安全头 + 分层限流 + CSP（无 unsafe-inline）                      |
+| 🧪 **单元测试**    | Jest 测试框架，覆盖核心控制器（覆盖率 82.43%）                            |
 | 🗄️ **Redis 缓存**  | 投票结果缓存 10 秒，减轻数据库压力                                      |
 | 🔁 **CI/CD**       | GitHub Actions 自动运行测试，保证代码质量                               |
 
@@ -108,7 +108,7 @@ e-vote/
 - Redis（Docker Compose 已包含）
 
 > Node.js 18/20 已 EOL，且不含 2026-10 的 [eMudhra 中间 CA 修复](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases)；请使用上述已修复版本。
-> 反向代理部署时设置 `TRUST_PROXY=1`；跨域前端通过 `CORS_ORIGIN` 配置白名单（默认只允许同源）。
+> 反向代理部署时设置 `TRUST_PROXY=1`；跨域前端通过 `CORS_ORIGIN` 配置白名单（默认只允许同源）；生产 WebSocket 通过 `CSP_CONNECT_SRC` 添加 `wss://你的域名`。
 
 #### 方式一：Docker Compose（推荐）
 
@@ -168,7 +168,7 @@ npm run dev
 npm test
 ```
 
-当前语句覆盖率 **81.67%**，CI 在 Node.js 22.x / 24.x 上自动执行。
+当前语句覆盖率 **82.43%**，CI 在 Node.js 22.x / 24.x 上自动执行。
 
 ### 🔑 默认账号
 
@@ -206,6 +206,8 @@ npm run seed
 | GET    | `/api/votes/:id/export`  | 导出 CSV 结果    |  ✅  |
 | POST   | `/api/ai/generate-poll`  | AI 生成投票      |  ✅  |
 
+> 草稿（`draft`）投票不会出现在公开列表；详情、结果和导出仅创建者或管理员可见。
+
 ### 💡 技术亮点
 
 - **WebSocket 实时推送**：投票完成后，所有在线结果页即时更新，取代传统轮询
@@ -217,8 +219,8 @@ npm run seed
 - **连接池 + 事务**：投票创建与提交均使用数据库事务，保证数据一致性
 - **代码规范**：集成 ESLint + Prettier，统一代码风格
 - **结构化日志**：Winston 日志系统，JSON 格式输出，支持日志轮转和按级别分类
-- **安全加固**：Helmet 安全头 + 分层限流（全局/API/敏感接口）
-- **单元测试**：Jest 覆盖核心控制器，语句覆盖率 81.67%
+- **安全加固**：Helmet 安全头 + 分层限流 + CSP（无 unsafe-inline）
+- **单元测试**：Jest 覆盖核心控制器，语句覆盖率 82.43%
 - **CI/CD**：GitHub Actions 自动运行测试，保障代码质量
 
 ---
@@ -239,8 +241,8 @@ npm run seed
 | 🖱️ **Multi-choice Limit** | Set max selectable options for multi-choice polls                |
 | 📱 **Responsive**         | Bootstrap 5 for PC / tablet / mobile                             |
 | 📝 **Structured Logging** | Winston logger with JSON format and rotation                     |
-| 🔒 **Security Hardening** | Helmet + layered rate limiting                                   |
-| 🧪 **Unit Testing**       | Jest test coverage for core controllers (81.67%)                   |
+| 🔒 **Security Hardening** | Helmet + layered rate limiting + CSP without unsafe-inline       |
+| 🧪 **Unit Testing**       | Jest test coverage for core controllers (82.43%)                   |
 | 🗄️ **Redis Cache**        | Poll results cached for 10s to reduce DB load                    |
 | 🔁 **CI/CD**              | GitHub Actions auto-runs tests on every push                     |
 
@@ -273,7 +275,7 @@ npm run seed
 - Redis (included in Docker Compose)
 
 > Node.js 18/20 are EOL and lack the October 2026 [eMudhra intermediate CA fix](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases); use one of the patched versions above.
-> Set `TRUST_PROXY=1` when behind a reverse proxy; configure `CORS_ORIGIN` for cross-origin frontends (same-origin only by default).
+> Set `TRUST_PROXY=1` when behind a reverse proxy; configure `CORS_ORIGIN` for cross-origin frontends (same-origin only by default); add `wss://your-domain` to `CSP_CONNECT_SRC` for production WebSocket.
 
 #### Option 1: Docker Compose (Recommended)
 
@@ -312,7 +314,7 @@ npm run dev
 npm test
 ```
 
-Current statement coverage is **81.67%**; CI runs it on Node.js 22.x / 24.x.
+Current statement coverage is **82.43%**; CI runs it on Node.js 22.x / 24.x.
 
 ### 🔑 Default Accounts
 
@@ -328,6 +330,7 @@ npm run seed
 | Demo     | `demo`   | `demo123`  | `user`  |
 
 > `npm run seed` reads the database settings from `.env` and creates or resets both accounts. `sql/init.sql` also ships with a working `admin` account, so you can log in right after initializing the database.
+> Draft polls are excluded from the public list; details, results, and exports are visible only to the creator or an admin.
 > Custom passwords: set `SEED_ADMIN_PASSWORD` / `SEED_DEMO_PASSWORD` before running `npm run seed`.
 > ⚠️ These accounts are for local development and demos only. Change the passwords or remove the accounts before exposing the app publicly.
 
@@ -342,8 +345,8 @@ npm run seed
 - **Connection Pool + Transactions**: Atomic operations for data consistency
 - **Code Quality**: ESLint + Prettier for consistent code style
 - **Structured Logging**: Winston logger with JSON format and rotation
-- **Security**: Helmet + layered rate limiting
-- **Testing**: Jest coverage for core controllers (81.67%)
+- **Security**: Helmet + layered rate limiting + CSP without unsafe-inline
+- **Testing**: Jest coverage for core controllers (82.43%)
 - **CI/CD**: GitHub Actions auto-runs tests on every push
 
 ---
